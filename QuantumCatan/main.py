@@ -7,19 +7,21 @@ from src.game_state import GameState
 from src.ui import GameUI
 from src.constants import WIN_W, WIN_H
 
-#def ask_player_count():
-    # simple terminal prompt before launching pygame
-    #while True:
-        #try:
-          #  val = input("Number of players (2-4) [default 4]: ").strip()
-          #  if val == "":
-         #       return 4
-         #   n = int(val)
-      #      if 2 <= n <= 4:
-     #           return n
-    #    except Exception:
-  #          pass
-  #      print("Please enter 2, 3 or 4.")
+"""
+def ask_player_count():
+     simple terminal prompt before launching pygame
+    while True:
+        try:
+            val = input("Number of players (2-4) [default 4]: ").strip()
+            if val == "":
+                return 4
+            n = int(val)
+            if 2 <= n <= 4:
+                return n
+        except Exception:
+            pass
+        print("Please enter 2, 3 or 4.")
+"""
 
 def main():
     pygame.init()
