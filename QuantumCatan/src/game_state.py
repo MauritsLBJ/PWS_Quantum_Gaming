@@ -290,14 +290,24 @@ class GameState:
         # land tiles
         for i, tile in enumerate(self.tiles):
             res = tile.get("resource")
+            mapping = {"wood":(120,180,80),"brick":(200,140,100),"sheep":(160,210,140),"wheat":(230,210,100),"ore":(140,140,170),"desert":(230,200,160)}
             if tile.get("quantum", False):
                 # quantum tiles: use a special striping fill
-                col = (200,200,180)
+                res1 = tile.get("superposed")[0]
+                res2 = tile.get("superposed")[1]
+                col1 = mapping.get(res1,(200,200,200))
+                col2 = mapping.get(res2, (200,200,200))
+                # divides the hexagons in half 
+                lefthalf_polys = [self.polys[i][1],self.polys[i][2],self.polys[i][3],self.polys[i][4]]
+                righthalf_polys = [self.polys[i][4],self.polys[i][5],self.polys[i][0],self.polys[i][1]]
+                pygame.draw.polygon(s, col1, righthalf_polys)
+                pygame.draw.polygon(s, col2, lefthalf_polys)
+                pygame.draw.polygon(s, LINE_COLOR, self.polys[i], 3)
+
             else:
-                mapping = {"wood":(120,180,80),"brick":(200,140,100),"sheep":(160,210,140),"wheat":(230,210,100),"ore":(140,140,170),"desert":(230,200,160)}
                 col = mapping.get(res, (200,200,200))
-            pygame.draw.polygon(s, col, self.polys[i])
-            pygame.draw.polygon(s, LINE_COLOR, self.polys[i], 3)
+                pygame.draw.polygon(s, col, self.polys[i])
+                pygame.draw.polygon(s, LINE_COLOR, self.polys[i], 3)
             # draw number
             if tile.get("number") is not None:
                 font = getFont(18)

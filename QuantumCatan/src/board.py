@@ -79,7 +79,7 @@ def randomize_tiles():
 
         # two distinct possible outcomes
         possibilities = random.sample(["wood","brick","sheep","wheat","ore"], 2)
-
+        print(possibilities[:])
         tiles[a]["ent_group"] = group_id
         tiles[b]["ent_group"] = group_id
         tiles[a]["quantum"] = True
