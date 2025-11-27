@@ -1,6 +1,6 @@
 # src/player.py
 # Player data structure and helpers
-
+from .rendering import draw_text
 class Player:
     def __init__(self, idx):
         self.idx = idx
@@ -14,9 +14,10 @@ class Player:
         # convenience: track score (number of settlements*1 + cities*2)
         self.score = 0
 
-    def add_resource(self, resource, amount=1):
+    def add_resource(self, resource, screen, amount=1, ):
         if resource in self.resources:
             self.resources[resource] += amount
+            draw_text(screen, f"{self.name} received {amount} {resource}(s). Now has {self.resources[resource]}.", 160, 100)
 
     def can_afford(self, cost):
         for k,v in cost.items():

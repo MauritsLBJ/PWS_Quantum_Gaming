@@ -2,7 +2,7 @@
 # The central glue: game state, handlers, drawing of board and UI rectangles used by UI
 
 import pygame, math
-from .constants import WIN_W, WIN_H, BG_COLOR, PANEL_BG, LINE_COLOR, TEXT_COLOR, WHITE, BLACK, PLAYER_COLORS, HEX_SIZE, BUTTON_COLOR
+from .constants import WIN_W, WIN_H, BG_COLOR, PANEL_BG, LINE_COLOR, TEXT_COLOR, WHITE, BLACK, PLAYER_COLORS, HEX_SIZE, BUTTON_COLOR, getFont
 from .board import (
     compute_centers_and_polys,
     compute_sea_polys,
@@ -24,10 +24,7 @@ from .constants import WIN_W as W, WIN_H as H
 
 # UI helper - create rects for buttons; draw helpers
 def draw_text(screen, text, x, y, size=18, color=TEXT_COLOR):
-    try:
-        font = pygame.font.Font("QuantumCatan/fonts/ScienceGothic-Regular.ttf", size)
-    except:
-        font = pygame.font.SysFont("Arial", size)
+    font = getFont(size)
     surf = font.render(text, True, color)
     screen.blit(surf, (x, y))
 
@@ -227,29 +224,45 @@ class GameState:
 
     # dice & distribution using quantum tokens
     def roll_and_distribute(self):
+        print("Rolling dice and distributing resources...")
         roll = roll_with_animation(self.screen)
+        print(f"Dice rolled: {roll}")
         self.last_roll = roll
         # collect tokens or classical resources to players
         # for each tile: if its number matches roll:
         for ti,tile in enumerate(self.tiles):
             if tile.get("number") == roll:
+                print(f"Tile at coord: {tile.get("coord")} activated for roll {roll}.")
                 # skip robber tile
                 if ti == getattr(self, "robber_idx", None):
+                    print("Robber present, no resources distributed from this tile.")
                     continue
                 # for each adjacent vertex, give token or resource to owner
                 for v in self.hex_vertex_indices[ti]:
                     owner = self.settlements_owner.get(v)
+                    print(owner)
                     if owner:
                         player_idx, typ = owner
                         if tile.get("quantum", False):
+                            print(f"Tile is quantum, giving token to Player {player_idx}.")
                             token = create_quantum_token_from_tile(tile)
                             # store token with player
                             token["from_tile_idx"] = ti
                             self.players[player_idx].tokens.append(token)
+                            print(f"all resources of player are now: {self.players[player_idx].resources}. And all tokens of player are now: {self.players[player_idx].tokens}.")
+                            print(self.screen, 
+                                      #f"{self.players[player_idx]} received one {token.get("type")} token, with resource distribution: {token.get("possible")}., 
+                                      "received",
+                                      160, 100)
+                                    
                         else:
                             # classical payout
+                            print(f"Tile is classical, giving resource to Player {player_idx}.")
                             amt = 2 if typ == "city" else 1
                             self.players[player_idx].resources[tile["resource"]] += amt
+                            print(f"Player {player_idx} received {amt} of {tile.get("resource")}.")
+                            print(f"all resources of player are now: {self.players[player_idx].resources}. And all tokens of player are now: {self.players[player_idx].tokens}.")
+                            print(self.screen, f"{self.players[player_idx]} received {amt}: {tile.get("resource")}.", 160, 100)
 
     # trades
     def perform_trade(self, player_idx, give_resource, receive_resource):
@@ -287,7 +300,7 @@ class GameState:
             pygame.draw.polygon(s, LINE_COLOR, self.polys[i], 3)
             # draw number
             if tile.get("number") is not None:
-                font = pygame.font.SysFont("Arial", 18, True)
+                font = getFont(18)
                 num_surf = font.render(str(tile["number"]), True, BLACK)
                 cx = sum(p[0] for p in self.polys[i]) / 6
                 cy = sum(p[1] for p in self.polys[i]) / 6
@@ -316,14 +329,14 @@ class GameState:
         # inventory panel
         ix = self.screen.get_width() - 240
         pygame.draw.rect(s, PANEL_BG, (ix, 8, 232, 220), border_radius=8)
-        font = pygame.font.SysFont("Arial", 16, True)
+        font = getFont(16)
         title = font.render(f"P{self.current_player+1}", True, PLAYER_COLORS[self.current_player])
         s.blit(title, (ix+10, 10))
-        sub = pygame.font.SysFont("Arial", 14).render("Inventory:", True, TEXT_COLOR)
+        sub = getFont(14).render("Inventory:", True, TEXT_COLOR)
         s.blit(sub, (ix+10, 36))
         # show resources
         for i,res in enumerate(["wood","brick","sheep","wheat","ore"]):
-            txt = pygame.font.SysFont("Arial", 14).render(f"{res.capitalize()}: {self.players[self.current_player].resources.get(res,0)}", True, TEXT_COLOR)
+            txt = getFont(14).render(f"{res.capitalize()}: {self.players[self.current_player].resources.get(res,0)}", True, TEXT_COLOR)
             s.blit(txt, (ix+12, 60 + i*20))
 
         # top-left buttons
@@ -335,7 +348,7 @@ class GameState:
         draw_text(s, "End Turn", self.end_turn_rect.x+12, self.end_turn_rect.y+8, size=18, color=WHITE)
 
         # shop
-        sx, sy = self.screen.get_width()-470, self.screen.get_height()-210
+        sx, sy = self.screen.get_width()-300, self.screen.get_height()-210
         pygame.draw.rect(s, PANEL_BG, (sx, sy, 240, 180), border_radius=8)
         draw_text(s, "Shop", sx+10, sy+8, size=18)
         # populate shop rects and store them in state
@@ -357,7 +370,7 @@ class GameState:
             if st.get("port") != "sea":
                 cx = sum(p[0] for p in self.sea_polys[i]) / 6
                 cy = sum(p[1] for p in self.sea_polys[i]) / 6
-                txt = pygame.font.SysFont("Arial", 12).render(st["port"].replace("port_","").upper(), True, BLACK)
+                txt = getFont(12).render(st["port"].replace("port_","").upper(), True, BLACK)
                 s.blit(txt, (cx - txt.get_width()/2, cy - txt.get_height()/2))
 
         # store some UI rects for UI handler
@@ -382,8 +395,3 @@ class GameState:
         """
         # Example: if you later add per-player token timers, process them here.
         return
-
-    # dice & distribution using quantum tokens
-    def roll_and_distribute(self):
-        roll = roll_with_animation(self.screen)
-        self.last_roll = roll

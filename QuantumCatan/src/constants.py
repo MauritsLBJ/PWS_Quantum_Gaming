@@ -1,5 +1,5 @@
 # src/constants.py
-
+import pygame
 WIN_W = 1100
 WIN_H = 750
 
@@ -26,3 +26,9 @@ HEX_RADIUS = 2
 SEA_RING = HEX_RADIUS + 1
 
 SQRT3 = 3 ** 0.5
+
+def getFont(size=18):
+    try:
+        return pygame.font.Font("QuantumCatan/fonts/ScienceGothic-Regular.ttf", size)
+    except:
+        return pygame.font.SysFont("Arial", size)
