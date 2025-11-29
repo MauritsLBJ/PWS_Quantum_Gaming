@@ -17,7 +17,7 @@ from .board import compute_sea_polys
 from .util import hex_to_pixel, polygon_corners, dist
 from .dice import roll_with_animation
 from .quantum import create_quantum_token_from_tile, collect_from_tile_for_player, measure_token
-from .robber import initial_robber_tile, move_robber_to
+from .robber import initial_robber_tile
 from .resources import best_trade_ratio_for, perform_trade
 from .buildings import compute_vertex_adjacency
 from .player import Player
@@ -163,6 +163,23 @@ class GameState:
                 best = i
         return best
 
+    def find_nearest_tile(self, pos, max_dist=60):
+        """
+        Returns the index of the tile whose center is closest to the mouse position.
+        If no tile is within max_dist pixels, returns None.
+        """
+        x, y = pos
+        best_idx = None
+        best_dist = max_dist
+
+        for i, (cx, cy) in enumerate(self.centers):
+            d = math.hypot(cx - x, cy - y)
+            if d < best_dist:
+                best_dist = d
+                best_idx = i
+
+        return best_idx
+
     def can_place_settlement(self, v_idx):
         return v_idx not in self.settlements_owner and all(n not in self.settlements_owner for n in self.vertex_neighbors.get(v_idx, []))
 
@@ -272,10 +289,9 @@ class GameState:
         return ok, ratio
 
     # robber movement: puts or breaks quantum state
-    def move_robber_here(self, tile_idx):
-        affected = move_robber_to(tile_idx, self.tiles, self.settlements_owner)
-        self.robber_idx = tile_idx
-        return affected
+    def move_robber_to(self, tile_idx):
+        t = self.tiles[tile_idx]
+        self.unentangle_pair_of_quantum_tiles(t)
 
     # switches a pair of normal tiles to a pair of entangeled tiles
     def entangle_pair_of_normal_tiles(self, pair_of_tiles, ent_group_number):
@@ -300,10 +316,16 @@ class GameState:
                     else:
                         self.tiles[n]["correlation"] = -1
 
-    def unentagle_pair_of_quantum_tiles(self, pair_of_q_tiles):
+    def unentangle_pair_of_quantum_tiles(self, robber_tile):
         """same principle as the other function, assumes the two quantum tiles contained in the list have the 
         same superposition and shit"""
         # gets the superposed list from one of the tiles, other should match so no problem there
+        pair_of_q_tiles = []
+        ent_group_number = robber_tile.get("ent_group")
+        for tile in self.tiles:
+            if tile.get("ent_group") == ent_group_number:
+                    pair_of_q_tiles.append(tile)
+            break
         possible_resources = pair_of_q_tiles[0].get("superposed")
         # shuffles the list to create randomness
         random.shuffle(possible_resources)
@@ -428,6 +450,10 @@ class GameState:
                 cy = sum(p[1] for p in self.sea_polys[i]) / 6
                 txt = getFont(12).render(st["port"].replace("port_","").upper(), True, BLACK)
                 s.blit(txt, (cx - txt.get_width()/2, cy - txt.get_height()/2))
+        
+        #draw robber
+        cx, cy = self.centers[self.robber_idx]
+        pygame.draw.circle(s, BLACK, (int(cx), int(cy)), 20)
 
         # store some UI rects for UI handler
         self.reset_rect = self.reset_rect

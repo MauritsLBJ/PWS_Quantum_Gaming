@@ -109,6 +109,11 @@ class GameUI:
                             self.state.place_road(nearest, self.state.current_player)
                             self.sel = None
                             self.placing = False
+        if moving_robber:
+            tile_idx = self.state.find_nearest_tile(pos)
+            if tile_idx is not None and tile_idx != self.state.robber_tile:
+                self.state.move_robber_to(tile_idx)
+                moving_robber = False
 
     def draw(self):
         s = self.screen

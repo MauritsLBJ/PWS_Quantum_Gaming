@@ -66,7 +66,7 @@ def main():
         if her_we_go:
             time.sleep(5)
             her_we_go = False
-            state.unentagle_pair_of_quantum_tiles(lis)
+            state.unentangle_pair_of_quantum_tiles(lis)
 
     pygame.quit()
     sys.exit()
