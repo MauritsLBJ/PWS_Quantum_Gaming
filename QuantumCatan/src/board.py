@@ -5,7 +5,7 @@ import random
 import math
 from collections import defaultdict
 from .util import hex_to_pixel, polygon_corners
-from .constants import HEX_RADIUS, SEA_RING, HEX_SIZE, SQRT3
+from .constants import HEX_RADIUS, SEA_RING, SQRT3
 
 def generate_hex_coords(radius=HEX_RADIUS):
     coords = []
@@ -29,7 +29,7 @@ def generate_sea_coords(radius=SEA_RING):
                 coords.append((q, r))
     # sort by angle around origin to preserve ring order
     def angle_key(coord):
-        x, y = hex_to_pixel(coord[0], coord[1], size=HEX_SIZE, origin=(0,0))
+        x, y = hex_to_pixel(coord[0], coord[1], size=50, origin=(0,0))
         return math.atan2(y, x)
     coords.sort(key=angle_key)
     return coords

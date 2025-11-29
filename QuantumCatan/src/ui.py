@@ -107,20 +107,39 @@ class GameUI:
                             self.state.place_road(nearest, self.state.current_player)
                             self.sel = None
                             self.placing = False
-        if self.state.moving_robber:
+        elif self.state.moving_robber:
             tile_idx = self.state.find_nearest_tile(pos)
             if tile_idx is not None and tile_idx != self.state.robber_idx:
                 self.state.move_robber_to(tile_idx)
                 self.state.moving_robber = False
-        if self.state.entangling:
+        elif self.state.entangling:
             tile_idx = self.state.find_nearest_tile(pos)
             if tile_idx is not None and tile_idx != self.state.robber_idx:
                 tile = self.state.tiles[tile_idx]
-                self.state.entangling_pair.append(tile)
-                if len(self.state.entangling_pair) == 2:
-                    self.state.entangle_pair_of_normal_tiles(self.state.entangling_pair, self.state.unused_ent_group_number)
-                    self.state.entangling_pair = []
-                    self.state.entangling = False
+                if tile not in self.state.entangling_pair and not tile.get("quantum", False):
+                    self.state.entangling_pair.append(tile)
+                    if len(self.state.entangling_pair) == 2:
+                        self.state.entangle_pair_of_normal_tiles(self.state.entangling_pair, self.state.unused_ent_group_number)
+                        self.state.entangling_pair = []
+                        self.state.entangling = False
+                elif tile in self.state.entangling_pair:
+                    self.state.push_message("Already selected this tile. Select a different quantum tile.")
+                else:    
+                    self.state.push_message("Selected tile is quantum. Select a classical tile.")
+        else:
+            tile_idx = self.state.find_nearest_tile(pos)
+            tile = self.state.tiles[tile_idx] if tile_idx is not None else None
+            self.state.push_message(f"Inspected tile:")
+            if tile and tile.get("quantum"):
+                entangled_with_coord = None
+                for entTile in self.state.tiles:
+                    if entTile.get("ent_group") == tile.get("ent_group") and entTile != tile:
+                        entangled_with_coord = entTile.get("coord")
+                        break
+                self.state.push_message(f"- Possible resources: {tile.get('superposed')[0]} and {tile.get('superposed')[1]}")
+                self.state.push_message(f"- entangled with coord: {entangled_with_coord}")
+            else:
+                self.state.push_message(f"- Resource: {tile.get('resource') if tile else 'N/A'}")
 
     def draw(self):
         s = self.screen

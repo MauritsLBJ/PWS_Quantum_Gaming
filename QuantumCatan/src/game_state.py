@@ -16,10 +16,10 @@ from .board import compute_centers_and_polys as board_centers_polys
 from .board import compute_sea_polys
 from .util import hex_to_pixel, polygon_corners, dist
 from .dice import roll_with_animation
-from .robber import initial_robber_tile
 from .resources import best_trade_ratio_for, perform_trade
 from .rendering import draw_text
 from .buildings import compute_vertex_adjacency
+#from .robber import initial_robber_tile
 from .player import Player
 from .constants import WIN_W as W, WIN_H as H
 
@@ -65,7 +65,7 @@ class GameState:
         # ports map: sea index -> vertex indices it serves
         self.port_vertex_map = self._assign_ports_to_vertices()
         # robber
-        self.robber_idx = initial_robber_tile(self.tiles)
+        self.robber_idx = None
         # UI rectangles (placeholders)
         self.reset_rect = pygame.Rect(20,20,120,36)
         self.dice_rect = pygame.Rect(20,70,120,40)
@@ -81,7 +81,7 @@ class GameState:
 
 
     # -- messaging helpers ---------------------------------------
-    def push_message(self, text, duration_ms=4000):
+    def push_message(self, text, duration_ms=10000):
         """
         Add a transient on-screen message. Rendered by draw().
         """
@@ -270,11 +270,12 @@ class GameState:
     # dice & distribution using quantum tokens
     def roll_and_distribute(self):
         #print("Rolling dice and distributing resources...")
+        self.moving_robber = False
         roll = roll_with_animation(self.screen)
         self.push_message(f"Dice rolled: {roll}")
         self.last_roll = roll
         if roll == 7:
-            self.push_message("Robber activated!")
+            self.push_message("Please move the robber.")
             self.moving_robber = True
             return
         # collect tokens or classical resources to players
@@ -307,7 +308,7 @@ class GameState:
                             amt = 2 if typ == "city" else 1
                             self.players[player_idx].resources[tile["resource"]] += amt
                             #print(f"Player {player_idx} received {amt} of {tile.get("resource")}.")
-                            print(f"all resources of player are now: {self.players[player_idx].resources}. And all tokens of player are now: {self.players[player_idx].tokens}.")
+                            #print(f"all resources of player are now: {self.players[player_idx].resources}. And all tokens of player are now: {self.players[player_idx].tokens}.")
                             self.push_message(f"{self.players[player_idx].name} received {amt}: {tile.get("resource")}.")
 
     # trades
@@ -322,8 +323,8 @@ class GameState:
         self.robber_idx = tile_idx
         if t.get("quantum", False) and t.get("ent_group") is not None:
             self.unentangle_pair_of_quantum_tiles(t)
-            print(f"Robber moved to entangled quantum tile at index {tile_idx}, unentangling the pair.")
-            print("Now entangle a pair of normal tiles.")
+            self.push_message(f"Robber moved to entangled quantum tile at index {tile_idx}, unentangling the pair.")
+            self.push_message("Now entangle a pair of normal tiles.")
             self.entangling = True
 
     # switches a pair of normal tiles to a pair of entangeled tiles
@@ -493,8 +494,9 @@ class GameState:
                 s.blit(txt, (cx - txt.get_width()/2, cy - txt.get_height()/2))
         
         #draw robber
-        cx, cy = self.centers[self.robber_idx]
-        pygame.draw.circle(s, BLACK, (int(cx), int(cy)), 20)
+        if self.robber_idx is not None:
+            cx, cy = self.centers[self.robber_idx]
+            pygame.draw.circle(s, BLACK, (int(cx), int(cy)), 24, width=8)
 
         # store some UI rects for UI handler
         self.reset_rect = self.reset_rect
