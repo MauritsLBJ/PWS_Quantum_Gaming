@@ -15,8 +15,6 @@ class GameUI:
     def __init__(self, state: GameState, screen):
         self.state = state
         self.screen = screen
-        self.sel = None
-        self.placing = False
         self.trade_mode = False
         self.trade_give = None
 
@@ -26,8 +24,8 @@ class GameUI:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 # cancel placement/trade
-                self.sel = None
-                self.placing = False
+                self.state.sel = None
+                self.state.placing = False
                 self.trade_mode = False
                 self.trade_give = None
 
@@ -72,41 +70,41 @@ class GameUI:
         for k, rect in self.state.shop_rects:
             if rect_contains(rect, pos):
                 # toggle selection
-                if self.sel == k:
-                    self.sel = None
+                if self.state.sel == k:
+                    self.state.sel = None
                     self.placing = False
                 else:
                     if self.state.player_can_afford(self.state.current_player, k):
-                        self.sel = k
-                        self.placing = True
+                        self.state.sel = k
+                        self.state.placing = self.state.sel
                 return
 
         # placement logic
-        if self.placing and self.sel:
-            if self.sel in ("village","city"):
+        if self.state.placing and self.state.sel:
+            if self.state.sel in ("village","city"):
                 nearest = self.state.find_nearest_intersection(pos)
                 if nearest is not None:
-                    if self.sel == "village":
+                    if self.state.sel == "village":
                         if self.state.can_place_settlement(nearest):
                             if self.state.player_buy(self.state.current_player, "village"):
                                 self.state.place_settlement(nearest, self.state.current_player, "village")
-                                self.sel = None
-                                self.placing = False
+                                self.state.sel = None
+                                self.state.placing = False
                     else:
                         # city
                         if self.state.can_upgrade_to_city(self.state.current_player, nearest):
                             if self.state.player_buy(self.state.current_player, "city"):
                                 self.state.upgrade_to_city(nearest, self.state.current_player)
-                                self.sel = None
-                                self.placing = False
-            elif self.sel == "road":
+                                self.state.sel = None
+                                self.state.placing = False
+            elif self.state.sel == "road":
                 nearest = self.state.find_nearest_road(pos)
                 if nearest is not None:
                     if self.state.can_place_road_slot(nearest):
                         if self.state.player_buy(self.state.current_player, "road"):
                             self.state.place_road(nearest, self.state.current_player)
-                            self.sel = None
-                            self.placing = False
+                            self.state.sel = None
+                            self.state.placing = False
         elif self.state.moving_robber:
             tile_idx = self.state.find_nearest_tile(pos)
             if tile_idx is not None and tile_idx != self.state.robber_idx:

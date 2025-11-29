@@ -21,6 +21,7 @@ PLAYER_COLORS = [
     (180, 120, 40)   # brown
 ]
 
+PREVIEW_COLOR = {"good":BLACK, "bad":(139, 0, 0)}
 
 HEX_RADIUS = 2
 SEA_RING = HEX_RADIUS + 1

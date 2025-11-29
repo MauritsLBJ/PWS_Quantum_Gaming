@@ -3,7 +3,7 @@
 
 import pygame, math
 import random
-from .constants import WIN_W, WIN_H, BG_COLOR, PANEL_BG, LINE_COLOR, TEXT_COLOR, WHITE, BLACK, PLAYER_COLORS, BUTTON_COLOR, getFont
+from .constants import WIN_W, WIN_H, BG_COLOR, PANEL_BG, LINE_COLOR, TEXT_COLOR, WHITE, BLACK, PLAYER_COLORS, BUTTON_COLOR, getFont, PREVIEW_COLOR
 from .board import (
     compute_centers_and_polys,
     compute_sea_polys,
@@ -45,6 +45,9 @@ class GameState:
         self.entangling = False
         self.entangling_pair = []
         self.unused_ent_group_number = None
+        
+        self.placing = None  # whether in placement mode
+        self.sel = None
         
         # message/notification log (text, expires_at_ms)
         self.message_log = []   # list of (text, expiry_timestamp_ms)
@@ -440,6 +443,26 @@ class GameState:
             else:
                 pygame.draw.rect(s, col, (x-13, y-13, 26, 26))
                 pygame.draw.rect(s, BLACK, (x-13, y-13, 26, 26), 2)
+                
+        #draw placement preview
+        if self.placing and self.sel:
+            mouse_x, mouse_y = pygame.mouse.get_pos()
+            if self.sel in ("village","city"):
+                nearest = self.find_nearest_intersection((mouse_x, mouse_y))
+                can_place = self.can_place_settlement(nearest) if self.sel == "village" else self.can_upgrade_to_city(self.current_player, nearest)
+                print(can_place)
+                if nearest is not None:
+                    vx, vy = self.intersections[nearest]
+                    if self.sel == "village":
+                        pygame.draw.circle(s, PREVIEW_COLOR["good" if can_place else "bad"], (int(vx), int(vy)), 12, width=2)
+                    else:
+                        pygame.draw.rect(s, PREVIEW_COLOR["good" if can_place else "bad"], (vx-13, vy-13, 26, 26), width=2)
+            elif self.sel == "road":
+                nearest = self.find_nearest_road((mouse_x, mouse_y))
+                if nearest is not None:
+                    a,b = self.roads_list[nearest]
+                    ax,ay = self.intersections[a]; bx,by = self.intersections[b]
+                    pygame.draw.line(s, PREVIEW_COLOR["good" if can_place else "bad"], (ax,ay), (bx,by), 6)
 
         # UI panels (basic)
         # inventory panel
