@@ -52,7 +52,7 @@ def randomize_tiles():
     
     QuantumOrNotList = [True] * 6 + [False] * 12
     random.shuffle(QuantumOrNotList)
-    print(QuantumOrNotList)
+    #print(QuantumOrNotList)
     
     for i, coord in enumerate(coords):
         if i == desert_pos:
@@ -78,7 +78,7 @@ def randomize_tiles():
 
         # two distinct possible outcomes
         possibilities = random.sample(["wood","brick","sheep","wheat","ore"], 2)
-        print(possibilities[:])
+        #print(possibilities[:])
         tiles[a]["ent_group"] = group_id
         tiles[b]["ent_group"] = group_id
         tiles[a]["quantum"] = True

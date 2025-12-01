@@ -16,16 +16,34 @@ class GameUI:
         self.state = state
         self.screen = screen
 
-    def handle_event(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            self._handle_click(event.pos)
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
+    def handle_event(self, g_event):
+        if g_event.type == pygame.MOUSEBUTTONDOWN and g_event.button == 1:
+            self._handle_click(g_event.pos)
+        if g_event.type == pygame.KEYDOWN:
+            if g_event.key == pygame.K_ESCAPE:
                 # cancel placement/trade
                 self.state.sel = None
                 self.state.placing = False
                 self.trade_mode = False
                 self.trade_give = None
+            else:
+                self.handle_dev_clicks(g_event)
+            
+            
+    def handle_dev_clicks(self, g_event):
+        if self.state.devMode == True:
+            if g_event.unicode.isdigit():
+                self.state.roll_and_distribute(g_event.unicode) 
+            if g_event.key == pygame.K_u:
+                self.state.unentangle_pair_of_quantum_tiles(self.state.tiles[self.state.find_nearest_tile(pygame.mouse.get_pos())])
+            if g_event.key == pygame.K_e:
+                self.state.entangling = not self.state.entangling
+            
+        
+            
+    
+
+    
 
     def _handle_click(self, pos):
         state = self.state
@@ -34,15 +52,20 @@ class GameUI:
         if rect_contains(self.state.reset_rect, pos):
             state.reset_game()
             return
-        if rect_contains(self.state.dice_rect, pos) and "rolling" in self.state.allowed_actions:
-            state.roll_and_distribute()
+        if rect_contains(self.state.dice_rect, pos) and ("rolling" in self.state.allowed_actions or self.state.devMode == True):
+            state.roll_and_distribute(None)
             return
-        if rect_contains(self.state.end_turn_rect, pos) and "endTurn" in self.state.allowed_actions:
+        if rect_contains(self.state.end_turn_rect, pos) and ("endTurn" in self.state.allowed_actions or self.state.devMode == True):
             state.end_turn()
             return
-        if rect_contains(self.state.trade_rect, pos) and "trading" in self.state.allowed_actions:
+        if rect_contains(self.state.trade_rect, pos) and ("trading" in self.state.allowed_actions or self.state.devMode == True):
             self.state.trading = not self.state.trading
             return
+        if rect_contains(self.state.devMode_rect, pos) and self.state.devMode == False:
+            self.state.devMode = True
+            self.state.round = 5
+            for player in self.state.players:
+                player.resources = {"wood":100,"brick":100,"sheep":100,"wheat":100,"ore":100}
         
         # if trading mode: select give then receive via panels
         if self.state.trading:
@@ -72,13 +95,13 @@ class GameUI:
                     self.state.sel = None
                     self.placing = False
                 else:
-                    if self.state.round < 0:
+                    if self.state.round < 2:
                         if k == "village" or k == "road":
                             self.state.sel = k
                             self.state.placing = self.state.sel
                         else:
                             self.state.push_message("Can only place villages and roads during initial placement.")
-                    elif self.state.round >= 0 and self.state.player_can_afford(self.state.current_player, k):
+                    elif self.state.round >= 2 and self.state.player_can_afford(self.state.current_player, k):
                         self.state.sel = k
                         self.state.placing = self.state.sel
                 return
@@ -90,8 +113,8 @@ class GameUI:
                 if nearest is not None:
                     if self.state.sel == "village":
                         if self.state.can_place_settlement(nearest):
-                            if self.state.round < 0:
-                                if self.state.villages_placed <= 2+self.state.round + self.state.current_player:
+                            if self.state.round < 2:
+                                if self.state.villages_placed < self.state.num_players*(self.state.round) + self.state.current_player+1:
                                     self.state.place_settlement(nearest, self.state.current_player, "village")
                                     self.state.sel = None
                                     self.state.placing = False
@@ -117,8 +140,8 @@ class GameUI:
                 nearest = self.state.find_nearest_road(pos)
                 if nearest is not None:
                     if self.state.can_place_road_slot(nearest):
-                        if self.state.round < 0:
-                            if self.state.roads_placed <= 2+self.state.round + self.state.current_player:
+                        if self.state.round < 2:
+                            if self.state.roads_placed < self.state.num_players*(self.state.round) + self.state.current_player+1:
                                 self.state.place_road(nearest, self.state.current_player)
                                 self.state.sel = None
                                 self.state.placing = False
@@ -152,7 +175,8 @@ class GameUI:
                 else:
                     self.state.entangling_pair.append(tile)
                     if len(self.state.entangling_pair) == 2:
-                        self.state.entangle_pair_of_normal_tiles(self.state.entangling_pair, self.state.unused_ent_group_number)
+                        self.state.unused_ent_group_numbers.sort()
+                        self.state.entangle_pair_of_normal_tiles(self.state.entangling_pair, self.state.unused_ent_group_numbers.pop())
                         self.state.entangling_pair = []
                         self.state.entangling = False 
                     
