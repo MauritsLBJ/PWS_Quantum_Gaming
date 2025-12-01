@@ -91,7 +91,7 @@ class GameUI:
                     if self.state.sel == "village":
                         if self.state.can_place_settlement(nearest):
                             if self.state.round < 0:
-                                if self.state.villages_placed <= 2+self.state.round:
+                                if self.state.villages_placed <= 2+self.state.round + self.state.current_player:
                                     self.state.place_settlement(nearest, self.state.current_player, "village")
                                     self.state.sel = None
                                     self.state.placing = False
@@ -118,7 +118,7 @@ class GameUI:
                 if nearest is not None:
                     if self.state.can_place_road_slot(nearest):
                         if self.state.round < 0:
-                            if self.state.roads_placed <= 2+self.state.round:
+                            if self.state.roads_placed <= 2+self.state.round + self.state.current_player:
                                 self.state.place_road(nearest, self.state.current_player)
                                 self.state.sel = None
                                 self.state.placing = False

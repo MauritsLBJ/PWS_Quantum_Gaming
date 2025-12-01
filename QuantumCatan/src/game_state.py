@@ -594,17 +594,20 @@ class GameState:
                         k+=1
         #trading button:
         self.trade_rect = pygame.Rect(self.screen.get_width() - 190, 340, 80, 20)
-        pygame.draw.rect(s, (150,100,200) if "trading" in self.allowed_actions else (128, 128, 128), self.trade_rect, border_radius=6)
+        pygame.draw.rect(s, ((150,100,200) if "trading" in self.allowed_actions else (128, 128, 128)) 
+                         ,
+                         self.trade_rect, border_radius=6
+                         )
         draw_text(s, "Trade", self.trade_rect.x+16, self.trade_rect.y+2, size=14, color=WHITE)
         
         # top-left buttons
         pygame.draw.rect(s, BUTTON_COLOR, self.reset_rect, border_radius=8)
         draw_text(s, "Reset", self.reset_rect.x+16, self.reset_rect.y+6, size=18, color=WHITE)
-        pygame.draw.rect(s, (100,100,200) if "rolling" in self.allowed_actions else (128, 128, 128), self.dice_rect, border_radius=8)
+        pygame.draw.rect(s, ((100,100,200) if "rolling" in self.allowed_actions else (128, 128, 128)) , self.dice_rect, border_radius=8)
         draw_text(s, "Roll Dice", self.dice_rect.x+12, self.dice_rect.y+8, size=18, color=WHITE)
         win_width, win_height = self.screen.get_size()
         self.end_turn_rect = pygame.Rect(20, win_height - 66, 120, 44)
-        pygame.draw.rect(s, (80,150,90) if "endTurn" in self.allowed_actions else (128, 128, 128), self.end_turn_rect, border_radius=8)
+        pygame.draw.rect(s, ((80,150,90) if "endTurn" in self.allowed_actions else (128, 128, 128)), self.end_turn_rect, border_radius=8)
         draw_text(s, "End Turn", self.end_turn_rect.x+12, self.end_turn_rect.y+8, size=18, color=WHITE)
         draw_text(s, "Quantum Catan", self.screen.get_width()//2 - 80, 10, size=24, color=TEXT_COLOR)
 
@@ -682,6 +685,10 @@ class GameState:
         self.possible_victims_rects = []
         if self.current_player == 0:
             self.round += 1
+        if self.round >= 0:
+            self.allowed_actions.append("rolling", "building", "trading")
+        else:
+            self.allowed_actions.append("building")
 
     # simple update hook called from main loop
     def update(self, dt):
@@ -693,7 +700,7 @@ class GameState:
         
         if self.round < 0 and self.roads_placed == 3+self.round and self.villages_placed == 3+self.round:
             self.allowed_actions.append("endTurn")
-                
+               
                 
         """
         dt: milliseconds since last frame.

@@ -29,7 +29,7 @@ def main():
     pygame.display.set_caption("Quantum Catan")
     screen = pygame.display.set_mode((WIN_W, WIN_H), pygame.RESIZABLE)
 
-    num_players =  2 #ask_player_count()
+    num_players =  3 #ask_player_count()
     state = GameState(num_players=num_players, screen=screen)
     ui = GameUI(state, screen)
 
