@@ -82,16 +82,9 @@ class GameState:
                 if a != b:
                     road_set.add(tuple(sorted((a,b))))
         self.roads_list = sorted(list(road_set))
+        #print (self.roads_list)
         return self.roads_list
 
-    def _compute_road_mids(self):
-        mids = []
-        roads = self._compute_roads_list()
-        for a,b in roads:
-            ax,ay = self.intersections[a]
-            bx,by = self.intersections[b]
-            mids.append(((ax+bx)/2, (ay+by)/2))
-        return mids
 
     def _compute_road_mids(self):
         # recompute from current intersections and roads
@@ -102,6 +95,7 @@ class GameState:
             bx,by = self.intersections[b]
             mids.append(((ax+bx)/2, (ay+by)/2))
         self.road_list = road_list
+        #print(mids)
         return mids
 
     def _assign_ports_to_vertices(self):
@@ -159,7 +153,8 @@ class GameState:
         return best_idx
 
     def can_place_settlement(self, v_idx):
-        return v_idx not in self.settlements_owner and all(n not in self.settlements_owner for n in self.vertex_neighbors.get(v_idx, []))
+        
+            return v_idx not in self.settlements_owner and all(n not in self.settlements_owner for n in self.vertex_neighbors.get(v_idx, []))
 
     def can_upgrade_to_city(self, player_idx, v_idx):
         owner = self.settlements_owner.get(v_idx)
@@ -170,18 +165,21 @@ class GameState:
         if road_idx is None or road_idx >= len(roads):
             return False
         edge = tuple(roads[road_idx])
+        print(edge)
         #check if adjacent to existing road or settlement of current player
-        for vertex in edge:
-            # check adjacent settlements
-            owner = self.settlements_owner.get(vertex)
-            if owner is not None and owner[0] == self.current_player:
-                return True
-            # check adjacent roads
-            for neighbor in self.vertex_neighbors.get(vertex, []):
-                adjacent_edge = tuple(sorted((vertex, neighbor)))
-                if adjacent_edge in self.roads_owner and self.roads_owner[adjacent_edge] == self.current_player:
+        if edge not in self.roads_owner:
+            for vertex in edge:
+                # check adjacent settlements
+                owner = self.settlements_owner.get(vertex)
+                if owner is not None and owner[0] == self.current_player:
                     return True
-        return edge not in self.roads_owner
+                # check adjacent roads
+                for neighbor in self.vertex_neighbors.get(vertex, []):
+                    adjacent_edge = tuple(sorted((vertex, neighbor)))
+                    if adjacent_edge in self.roads_owner and self.roads_owner[adjacent_edge] == self.current_player:
+                        return True
+            return False
+        else: return False
 
     def player_can_afford(self, player_idx, item_key):
         # use COSTS mapping minimal (recreate simple mapping)
@@ -215,11 +213,13 @@ class GameState:
     def place_settlement(self, v_idx, player_idx, typ="village"):
         self.push_message(f"{self.players[player_idx].name} placed a village.")
         self.settlements_owner[v_idx] = (player_idx, typ)
+        self.players[player_idx].buildables_placed["settlements"].append(v_idx)
         self.players[player_idx].score += (1 if typ=="village" else 2)
 
     def upgrade_to_city(self, v_idx, player_idx):
         self.push_message(f"{self.players[player_idx].name} placed a city.")
         self.settlements_owner[v_idx] = (player_idx, "city")
+        self.players[player_idx].buildables_placed["cities"].append(v_idx)
         # city gives +1 score relative to village
         self.players[player_idx].score += 1
 
@@ -228,6 +228,7 @@ class GameState:
         roads = self._compute_roads_list()
         edge = tuple(roads[road_idx])
         self.roads_owner[edge] = player_idx
+        self.players[player_idx].buildables_placed["roads"].append(road_idx)
         
     def give_initial_settlement_resources(self, v_idx, player_idx):
         # give resources from adjacent tiles to player

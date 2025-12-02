@@ -13,6 +13,8 @@ class Player:
         # owned buildings tracked in game_state dictionaries (roads_owner / settlements_owner)
         # convenience: track score (number of settlements*1 + cities*2)
         self.score = 0
+        self.buildables_placed = {"settlements":[], "cities":[], "roads":[]}
+        self.longest_road_roads = []
 
     def add_resource(self, resource, screen, amount=1, ):
         if resource in self.resources:
