@@ -141,12 +141,12 @@ class GameState:
         """
         x, y = pos
         best_idx = None
-        best_dist = max_dist
+        dist = max_dist
 
         for i, (cx, cy) in enumerate(self.centers):
             d = math.hypot(cx - x, cy - y)
-            if d < best_dist:
-                best_dist = d
+            if d < dist:
+                dist = d
                 best_idx = i
 
         return best_idx
@@ -232,12 +232,13 @@ class GameState:
     def give_initial_settlement_resources(self, v_idx, player_idx):
         # give resources from adjacent tiles to player
         adjacent_tiles = []
-        for ti, hex_idxs in enumerate(self.hex_vertex_indices):
-            if v_idx in hex_idxs:
+        for ti, hex_vidxs in enumerate(self.hex_vertex_indices):
+            if v_idx in hex_vidxs:
                 adjacent_tiles.append(ti)
         for ti in adjacent_tiles:
             tile = self.tiles[ti]
             res = tile.get("resource")
+            print(res)
             if res and res != "desert":
                 self.players[player_idx].resources[res] += 1
                 self.push_message(f"{self.players[player_idx].name} received 1 {res} from initial settlement.")
@@ -247,10 +248,11 @@ class GameState:
         #print("Rolling dice and distributing resources...")
         self.moving_robber = False
         if self.devMode == False: self.allowed_actions.remove("rolling")
+        roll = 0
         if number == None: 
             roll = random.randint(1,6) + random.randint(1,6) 
         else: 
-            roll = number
+            roll = int(number)
         self.push_message(f"Dice rolled: {roll}")
         self.last_roll = roll
         if roll == 7:
@@ -348,18 +350,18 @@ class GameState:
             for n in ("endTurn", "trading", "building"):
                 self.allowed_actions.append(n)
         # saves the resources of the normal tiles
-        resourche1 = pair_of_tiles[0].get("resource")
-        resourche2 = pair_of_tiles[1].get("resource")
+        resource1 = pair_of_tiles[0][1].get("resource")
+        resource2 = pair_of_tiles[1][1].get("resource")
         # checks for every tile in the self.riles list if one of the given tiles equals it
         for n in range(len(self.tiles)):
-            for tile in pair_of_tiles:
+            for idx, tile in pair_of_tiles:
                 if tile == self.tiles[n]:
                     # changes all the atributes of the tile in self.tiles
                     self.tiles[n]["quantum"] = True
                     self.tiles[n]["ent_group"] = ent_group_number
                     self.tiles[n]["resource"] = None
                     self.tiles[n]["distribution"] = 0.5
-                    self.tiles[n]["superposed"] = [resourche1, resourche2]
+                    self.tiles[n]["superposed"] = [resource1, resource2]
 
     def unentangle_pair_of_quantum_tiles(self, robber_tile):
         """same principle as the other function, assumes the two quantum tiles contained in the list have the 
@@ -724,19 +726,26 @@ class GameState:
         
         if self.moving_robber or self.entangling or self.inspecting:
             text = None
-            if self.moving_robber:
+            if self.inspecting:
+                text = "Select a tile to inspect"
+            elif self.moving_robber:
                 text = "Select a tile for the robber"
-            else:
+            elif self.entangling:
                 text = "Select two tiles to entangle"
+            
             draw_text(s, text, self.screen.get_width()//2, 50, size=19, color=TEXT_COLOR, centered=True)
-            if self.find_nearest_tile(pygame.mouse.get_pos(), max_dist=20) is not None:
-                vertices = compute_vertex_adjacency[self.find_nearest_tile(pygame.mouse.get_pos())]
-                for idxs in vertices:
-                    for i in range(6):
-                        a = idxs[i]; b = idxs[(i+1)%6]
-                        if a != b:
-                            ax,ay = self.intersections[a]; bx,by = self.intersections[b]
-                            pygame.draw.line(s, (60,40,20), (ax,ay), (bx,by), 15)
+            
+            # make the borders of selected tile thicker
+            mouse_x, mouse_y = pygame.mouse.get_pos()
+            hovered_tile = self.find_nearest_tile((mouse_x, mouse_y))
+            
+            if hovered_tile is not None:
+                cx, cy = self.centers[hovered_tile]
+                pygame.draw.polygon(s, (255, 255, 0), self.polys[hovered_tile], 3)
+            if self.entangling and len(self.entangling_pair) == 1:
+                q, r = self.entangling_pair[0][1]["coord"]
+                selected_tile = self.entangling_pair[0][0]
+                pygame.draw.polygon(s, ENT_NUMBER_COLOURS[self.unused_ent_group_numbers[0]-1], self.polys[selected_tile], 5)
                 
             
         #if self.moving_robber or 
@@ -784,6 +793,7 @@ class GameState:
         self.round = 0
         self.current_player = 0
         self.allowed_actions = ["building"]
+        self.last_roll = None
         
         # initialize players
         self.players = [Player(i) for i in range(self.num_players)]
@@ -792,13 +802,18 @@ class GameState:
             p.resources = {"lumber":0,"brick":0,"wool":0,"grain":0,"ore":0}
             p.tokens = []
         # geometry & tiles
-        
+        self.unused_ent_group_numbers = [i+1 for i in range(10)]
         self.tiles = randomize_tiles()
+        # randomly select 3 entangled pairs
+        
+        
+        
+        
         self.sea_tiles = generate_sea_ring()
         self.moving_robber = False
         self.entangling = False
         self.entangling_pair = []
-        self.unused_ent_group_numbers = [4, 5, 6, 7, 8, 9, 10]
+        
         
         self.settlements_placed = 0
         self.roads_placed = 0
@@ -821,6 +836,7 @@ class GameState:
 
         # build graph
         _, self.hex_vertex_indices = compute_centers_and_polys(self.origin)
+        #print(self.hex_vertex_indices)
         self.intersections = []  # create by extracting vertices in build_graphFrom polygons-like manner
         self._build_vertex_list()
         # derived
@@ -848,6 +864,17 @@ class GameState:
         self.inspecting = False
         
         self.devMode = False
+        
+        for p in range(3):
+            while len(self.entangling_pair) < 2:
+                tile_idx = random.randint(0, len(self.tiles)-1)
+                resource_list = [t[1].get("resource") for t in self.entangling_pair]
+                tile = self.tiles[tile_idx]
+                if not (tile in self.entangling_pair or tile.get("quantum", False) or tile.get("resource") == "desert" or tile.get("resource") in resource_list):
+                    self.entangling_pair.append((tile_idx, tile))
+            self.unused_ent_group_numbers.sort()
+            self.entangle_pair_of_normal_tiles(self.entangling_pair, self.unused_ent_group_numbers.pop(0))
+            self.entangling_pair = []   
 
     # simple update hook called from main loop
     def update(self, dt):

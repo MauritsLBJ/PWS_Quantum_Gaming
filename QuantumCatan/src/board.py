@@ -39,7 +39,7 @@ SEA_COORDS = generate_sea_coords()
 
 STANDARD_NUMBERS = [2,3,3,4,4,5,5,6,6,8,8,9,9,10,10,11,11,12]
 
-RESOURCE_POOL = ["lumber"]*4 + ["brick"]*4 + ["wool"]*4 + ["grain"]*4 + ["ore"]*4
+RESOURCE_POOL = ["lumber"]*4 + ["brick"]*3 + ["wool"]*4 + ["grain"]*4 + ["ore"]*3
 
 def randomize_tiles():
     coords = list(HEX_COORDS)
@@ -50,10 +50,24 @@ def randomize_tiles():
     desert_pos = random.randrange(len(coords))
     tiles = []
     
+
+    
+    for i, coord in enumerate(coords):
+        if i == desert_pos:
+            tiles.append({"coord": coord, "resource": "desert", "number": None, "quantum": False, "ent_group": None})
+        else:
+            res = resources.pop()
+            num = numbers.pop()
+            tiles.append({"coord": coord, "resource": res, "number": num, "quantum": False, "ent_group": None})
+    
+    return tiles
+    
+    
+    
+    """""
     QuantumOrNotList = [True] * 6 + [False] * 12
     random.shuffle(QuantumOrNotList)
     #print(QuantumOrNotList)
-    
     for i, coord in enumerate(coords):
         if i == desert_pos:
             tiles.append({"coord": coord, "resource": "desert", "number": None, "quantum": False, "ent_group": None})
@@ -97,6 +111,7 @@ def randomize_tiles():
     #    print(tiles[tiles.index(t)])
 
     return tiles
+    """""
 
 
 def generate_sea_ring():
