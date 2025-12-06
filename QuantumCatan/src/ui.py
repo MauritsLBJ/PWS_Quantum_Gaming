@@ -24,6 +24,7 @@ class GameUI:
                 # cancel placement
                 self.state.sel = None
                 self.state.placing = False
+                self.state.entangling_pair = []
             else:
                 self.handle_dev_clicks(g_event)
             
@@ -215,10 +216,10 @@ class GameUI:
                 elif tile.get("quantum", False):
                     self.state.push_message("Selected tile is quantum. Select a classical tile.")
                 elif tile.get("resource") == "desert":
-                    self.state.push_message("Cannot entangle desert tile. Select a different classical tile.")
+                    self.state.push_message("Cannot entangle desert tile. Select a different tile.")
                 
                 elif tile.get("resource") in resource_list:
-                    self.state.push_message("Cannot entangle two tiles of the same resource type. Select a different classical tile.")
+                    self.state.push_message("Cannot entangle two tiles of the same resource type. Select a different tile.")
                 else:
                     self.state.entangling_pair.append((tile_idx, tile))
                     if len(self.state.entangling_pair) == 2:

@@ -269,8 +269,10 @@ class GameState:
     def roll_and_distribute(self, number):
         #print("Rolling dice and distributing resources...")
         self.moving_robber = False
+        self.activated_settlements = []
         if self.devMode == False: self.allowed_actions.remove("rolling")
         roll = 0
+        self.frames_passed_at_roll = self.frames_passed
         if number == None: 
             roll = random.randint(1,6) + random.randint(1,6) 
         else: 
@@ -304,20 +306,24 @@ class GameState:
                     #print(owner)
                     if owner:
                         player_idx, typ = owner
+                        amt = 2 if typ == "city" else 1
+                        if typ == "settlement": self.activated_settlements.append(v)
+                        else: self.activated_cities.append(v)
                         if tile.get("quantum", False):
                             #print(f"Tile is quantum, giving token to Player {player_idx}.")
                             token = {"type":"entangled","group":tile["ent_group"], "possible": tile.get("superposed")[:], "tile_coord": tile["coord"]}
                             # store token with player
                             token["from_tile_idx"] = ti
-                            self.players[player_idx].tokens.append(token)
-                            #print(f"all resources of player are now: {self.players[player_idx].resources}. And all tokens of player are now: {self.players[player_idx].tokens}.")
-                            self.push_message(f"{self.players[player_idx].name} received one superposed token")
-                            #print(self.players[player_idx].tokens)
+                            for k in range(amt):
+                                self.players[player_idx].tokens.append(token)
+                                #print(f"all resources of player are now: {self.players[player_idx].resources}. And all tokens of player are now: {self.players[player_idx].tokens}.")
+                                self.push_message(f"{self.players[player_idx].name} received one superposed token")
+                                #print(self.players[player_idx].tokens)
                                     
                         else:
                             # classical payout
                             #print(f"Tile is classical, giving resource to Player {player_idx}.")
-                            amt = 2 if typ == "city" else 1
+                            
                             self.players[player_idx].resources[tile["resource"]] += amt
                             #print(f"Player {player_idx} received {amt} of {tile.get("resource")}.")
                             #print(f"all resources of player are now: {self.players[player_idx].resources}. And all tokens of player are now: {self.players[player_idx].tokens}.")
@@ -340,6 +346,8 @@ class GameState:
         stolen_resource = random.choice(available_resources)
         victim.resources[stolen_resource] -= 1
         thief.resources[stolen_resource] += 1
+        for k in ("endTurn", "trading", "building", "placeDevCard"):
+            self.allowed_actions.append(k)
         self.push_message(f"{thief.name} stole 1 {stolen_resource} from {victim.name}.")
 
     # robber movement: puts or breaks quantum state
@@ -492,7 +500,6 @@ class GameState:
                         self.tiles[n]["distribution"] = probnum/(probnum+1)
                     elif both_tiles[i] == self.tiles[n]:
                         self.tiles[n]["distribution"] = (1/(probnum+1))
-        print()
 
 
         
@@ -502,6 +509,9 @@ class GameState:
     def draw(self):
         s = self.screen
         s.fill(BG_COLOR)
+        bgImage = pygame.image.load("QuantumCatan/img/bg.jpg")
+        bgImage = pygame.transform.smoothscale(bgImage, (W, H))
+        s.blit(bgImage, (0,0))
 
         # sea
         for i, s_tile in enumerate(self.sea_tiles):
@@ -562,12 +572,23 @@ class GameState:
         for idx, (owner, typ) in self.settlements_owner.items():
             x,y = self.intersections[idx]
             col = PLAYER_COLORS[owner]
+            deltaframes = self.frames_passed-self.frames_passed_at_roll
             if typ == "settlement":
                 pygame.draw.circle(s, col, (int(x), int(y)), 12)
                 pygame.draw.circle(s, BLACK, (int(x), int(y)), 2)
+                if deltaframes < 10 and idx in self.activated_settlements:
+                    pygame.draw.circle(s, (255, 255, 0), (int(x), int(y)), 12, width=3)
+                elif deltaframes >= 10 and deltaframes < 30 and idx in self.activated_settlements:
+                    pygame.draw.circle(s, col, (int(x) + (W-200-int(x))/20*(deltaframes-10), int(y) - (int(y)-100)/20*(deltaframes-10)), 12)
+
+
             else:
                 pygame.draw.rect(s, col, (x-13, y-13, 26, 26))
                 pygame.draw.rect(s, BLACK, (x-13, y-13, 26, 26), 2)
+                if self.frames_passed - self.frames_passed_at_roll < 10 and idx in self.activated_cities:
+                    pygame.draw.rect(s, (255, 255, 0), (x-13, y-13, 26, 26), width=3)
+                if deltaframes >= 10 and deltaframes < 30 and idx in self.activated_cities:
+                    pygame.draw.rect(s, col, (int(x) + (W-200-int(x))/20*(deltaframes-10)-13, int(y) - (int(y)-100)/20*(deltaframes-10)-13, 26, 26))
                 
         # draw placement preview
         if self.placing and self.sel:
@@ -919,6 +940,10 @@ class GameState:
         self.devMode = False
         self.runningGame = True
         self.last_settlement_pos = None
+        self.frames_passed = 0
+        self.frames_passed_at_roll = 0
+        self.activated_settlements = []
+        self.activated_cities = []
         
         for p in range(3):
             while len(self.entangling_pair) < 2:
@@ -943,13 +968,19 @@ class GameState:
             if (self.roads_placed == 1) and (self.settlements_placed == 1):
                 if "endTurn" not in self.allowed_actions:
                     if self.devMode == False: self.allowed_actions.append("endTurn")
+                    
+        if self.possible_victims != []:
+            for k in ("building", "endTurn", "trading"):
+                if k in self.allowed_actions:
+                    self.allowed_actions.remove(k)
         
         for player in self.players:
             if player.score >= 10 and self.runningGame:
                 self.push_message(f"{player.name} has won the game with a score of {player.score}!")
                 self.runningGame = False
                 self.allowed_actions = []
-                
+        
+        self.frames_passed += 1
                 
         """
         dt: milliseconds since last frame.
