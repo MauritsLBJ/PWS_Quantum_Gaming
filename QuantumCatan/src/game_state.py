@@ -242,6 +242,11 @@ class GameState:
             if res and res != "desert":
                 self.players[player_idx].resources[res] += 1
                 self.push_message(f"{self.players[player_idx].name} received 1 {res} from initial settlement.")
+            if tile.get("quantum", False):
+                token = {"type":"entangled","group":tile["ent_group"], "possible": tile.get("superposed")[:], "tile_coord": tile["coord"]}
+                token["from_tile_idx"] = ti
+                self.players[player_idx].tokens.append(token)
+                self.push_message(f"{self.players[player_idx].name} received one superposed token from initial settlement.")
 
     # dice & distribution using quantum tokens
     def roll_and_distribute(self, number):
@@ -264,9 +269,9 @@ class GameState:
             return
         else:
             if self.devMode == False: 
-                self.allowed_actions.append("endTurn")
-                self.allowed_actions.append("trading")
-                self.allowed_actions.append("building")
+                for k in ("endTurn", "trading", "building"):
+                    self.allowed_actions.append(k)
+
         # collect tokens or classical resources to players
         # for each tile: if its number matches roll:
         for ti,tile in enumerate(self.tiles):
@@ -331,23 +336,23 @@ class GameState:
             self.entangling = True
         else:
             if self.devMode == False:
-                for n in ("endTurn", "trading", "building"):
+                for n in ("endTurn", "trading", "building", "placeDevCard"):
                     self.allowed_actions.append(n)
         #check if another player is on this tile and steal a resource
         for v in self.hex_vertex_indices[tile_idx]:
             owner = self.settlements_owner.get(v)
-            if owner:
+            if owner and self.current_player not in owner:
                 owner_idx, btype = owner
                 self.possible_victims.append(owner_idx)
     # switches a pair of normal tiles to a pair of entangeled tiles
-    def entangle_pair_of_normal_tiles(self, pair_of_tiles, ent_group_number):
+    def entangle_pair_of_normal_tiles(self, pair_of_tiles, ent_group_number, start=False):
         """ A list with a two pairs needs to be passed in this function, next it checks with which of the 
         tiles in the self.tiles list it matches and changes the atributes of the dictionary belonging to the tile in 
         the self.tiles list, entgroup_number should come from the previous pair of entangled tiles.
         Does assume the tiles are not quantum"""
         
-        if self.devMode == False:
-            for n in ("endTurn", "trading", "building"):
+        if self.devMode == False and start == False:
+            for n in ("endTurn", "trading", "building", "placeDevCard"):
                 self.allowed_actions.append(n)
         # saves the resources of the normal tiles
         resource1 = pair_of_tiles[0][1].get("resource")
@@ -641,7 +646,7 @@ class GameState:
         if self.devMode == False: pygame.draw.rect(s, (150, 110, 160), self.devMode_rect, border_radius=8)
         if self.devMode == False: draw_text(s, "DevMode", self.devMode_rect.x+12, self.devMode_rect.y+8, size=18, color=WHITE)
         
-        self.inspect_rect = pygame.Rect(150, 70, 120, 40)
+        self.inspect_rect = pygame.Rect(280, 20, 120, 40)
         pygame.draw.rect(s,  (150*1.2, 110*1.2, 160*1.2)if self.inspecting else (150, 110, 160), self.inspect_rect, border_radius=8)
         draw_text(s, "Inspect", self.inspect_rect.x+12, self.inspect_rect.y+8, size=18, color=WHITE)
         
@@ -673,20 +678,21 @@ class GameState:
             
             if self.round < 2:
                 if k == "settlement":
-                    if self.settlements_placed < self.required_placed:
+                    if self.settlements_placed == 0:
                         colour = self.players[self.current_player].color
                         if r.collidepoint(pygame.mouse.get_pos()):
                             colour = tuple([hoverBrightFactor*x for x in self.players[self.current_player].color])
                 elif k == "road":
-                    if self.settlements_placed == self.required_placed:
-                        if self.roads_placed < self.required_placed:
+                    if self.settlements_placed == 1:
+                        if self.roads_placed == 0:
                             colour = self.players[self.current_player].color
                             if r.collidepoint(pygame.mouse.get_pos()):
                                 colour = tuple([hoverBrightFactor*x for x in self.players[self.current_player].color])
-            if self.player_can_afford(self.current_player, k):
-                self.players[self.current_player].color
-                if r.collidepoint(pygame.mouse.get_pos()):
-                    colour = tuple([hoverBrightFactor*x for x in self.players[self.current_player].color])
+            elif self.player_can_afford(self.current_player, k):
+                if "building" in self.allowed_actions or self.devMode == True:
+                    colour = self.players[self.current_player].color
+                    if r.collidepoint(pygame.mouse.get_pos()):
+                        colour = tuple([hoverBrightFactor*x for x in self.players[self.current_player].color])
             
             if self.sel == k:
                 colour = tuple([selectBrightFactor*x for x in self.players[self.current_player].color])
@@ -745,6 +751,7 @@ class GameState:
             if self.entangling and len(self.entangling_pair) == 1:
                 q, r = self.entangling_pair[0][1]["coord"]
                 selected_tile = self.entangling_pair[0][0]
+                self.unused_ent_group_numbers.sort()
                 pygame.draw.polygon(s, ENT_NUMBER_COLOURS[self.unused_ent_group_numbers[0]-1], self.polys[selected_tile], 5)
                 
             
@@ -771,22 +778,51 @@ class GameState:
 
         
     def end_turn(self):
-        self.current_player = (self.current_player + 1) % self.num_players
+        
         self.trading = False
         self.trading_partner = None
         self.possible_trading_partners = []
         self.trading_partners_rects = []
         self.possible_victims = []
         self.possible_victims_rects = []
-        if self.current_player == 0:
-            self.round += 1
+        self.settlements_placed = 0
+        self.roads_placed = 0
+        self.push_message(f"{self.players[self.current_player].name} ended their turn.")
+        if self.round == 0:
+            if self.current_player == self.num_players -1:
+                self.push_message("First round of placement complete. Starting second round.") 
+                self.round += 1
+            else:
+                self.current_player += 1
+                
+        elif self.round == 1:
+            if self.current_player == 0:
+                self.push_message("Second round of placement complete. Starting second round.")
+                self.round += 1
+            else:
+                self.current_player -= 1
+        
+        else:
+            if self.current_player == self.num_players -1:
+                self.push_message("Turn cycle complete. Starting new round.")
+                self.current_player = 0
+                self.round += 1
+            else:
+                self.current_player = (self.current_player + 1) % self.num_players
+
+            
+        
         if self.round >= 2:
             if self.devMode == False: self.allowed_actions.append("rolling")
-            if self.devMode == False: self.allowed_actions.append("building")
-            if self.devMode == False: self.allowed_actions.append("trading")
+            if self.devMode == False: self.allowed_actions.append("placeDevCard")
         else:
             if self.devMode == False: self.allowed_actions.append("building")
-        if self.devMode == False: self.allowed_actions.remove("endTurn")
+        if self.devMode == False: 
+            for k in ("trading", "building", "endTurn"):
+                if k in self.allowed_actions:
+                    self.allowed_actions.remove(k)
+
+        self.last_roll = None
 
 
     def reset_game(self):
@@ -873,7 +909,7 @@ class GameState:
                 if not (tile in self.entangling_pair or tile.get("quantum", False) or tile.get("resource") == "desert" or tile.get("resource") in resource_list):
                     self.entangling_pair.append((tile_idx, tile))
             self.unused_ent_group_numbers.sort()
-            self.entangle_pair_of_normal_tiles(self.entangling_pair, self.unused_ent_group_numbers.pop(0))
+            self.entangle_pair_of_normal_tiles(self.entangling_pair, self.unused_ent_group_numbers.pop(0), start=True)
             self.entangling_pair = []   
 
     # simple update hook called from main loop
@@ -882,11 +918,10 @@ class GameState:
             self.trading = False
             self.trading_partner = None
             self.possible_trading_partners = []
-            self.trading_partners_rects = []
-        
+            self.trading_partners_rects = []       
+             
         if self.round < 2:
-            amountShouldBePlaced = self.num_players*self.round + self.current_player+1
-            if (self.roads_placed == amountShouldBePlaced) and (self.settlements_placed == amountShouldBePlaced):
+            if (self.roads_placed == 1) and (self.settlements_placed == 1):
                 if "endTurn" not in self.allowed_actions:
                     if self.devMode == False: self.allowed_actions.append("endTurn")
                

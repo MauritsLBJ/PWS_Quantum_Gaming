@@ -126,14 +126,14 @@ class GameUI:
                     self.button_clicked()
                     if self.state.round < 2:
                         if k == "settlement":
-                            if self.state.settlements_placed < self.state.num_players*self.state.round + self.state.current_player+1:
+                            if self.state.settlements_placed == 0:
                                 self.state.sel = k
                                 self.state.placing = self.state.sel
                             else:
                                 self.state.push_message("You already placed a settlement this initial placement turn")
                         elif k == "road":
-                            if self.state.settlements_placed == self.state.num_players*self.state.round + self.state.current_player+1:
-                                if self.state.roads_placed < self.state.num_players*self.state.round + self.state.current_player+1:
+                            if self.state.settlements_placed == 1:
+                                if self.state.roads_placed == 0:
                                     self.state.sel = k
                                     self.state.placing = self.state.sel
                                 else:
@@ -143,8 +143,11 @@ class GameUI:
                         else:
                             self.state.push_message("Can only place settlements and roads during initial placement.")
                     elif self.state.player_can_afford(self.state.current_player, k):
-                        self.state.sel = k
-                        self.state.placing = self.state.sel
+                        if "building" in self.state.allowed_actions:
+                            self.state.sel = k
+                            self.state.placing = self.state.sel
+                        else:
+                            self.state.push_message("Cannot build right now.")
                     else:
                         self.state.push_message("Can't afford")
                 return
@@ -157,7 +160,7 @@ class GameUI:
                     if self.state.sel == "settlement":
                         if self.state.can_place_settlement(nearest):
                             if self.state.round < 2:
-                                if self.state.settlements_placed < self.state.num_players*(self.state.round) + self.state.current_player+1:
+                                if self.state.settlements_placed == 0:
                                     self.state.place_settlement(nearest, self.state.current_player, "settlement")
                                     self.state.sel = None
                                     self.state.placing = False
@@ -185,7 +188,7 @@ class GameUI:
                 if nearest is not None:
                     if self.state.can_place_road_slot(nearest):
                         if self.state.round < 2:
-                            if self.state.roads_placed < self.state.num_players*(self.state.round) + self.state.current_player+1:
+                            if self.state.roads_placed == 0:
                                 self.state.place_road(nearest, self.state.current_player)
                                 self.state.sel = None
                                 self.state.placing = False
