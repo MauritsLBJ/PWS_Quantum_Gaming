@@ -622,20 +622,24 @@ class GameState:
                             self.tiles[n]["distribution"] = (1 / (probnum -1))
                         else:
                             self.tiles[n]["distribution"] = ((probnum) / (probnum + 1))
+                        self.push_message(f"changed distribution of tile {self.tiles[n].get("coord")} ")
                     # the tile we're about to change will decrease in distribution
                     elif both_tiles[i] == self.tiles[n]:
                         if increase_tile_idx == lesser_idx:
                             self.tiles[n]["distribution"] = ((probnum-2) / (probnum -1))
                         else:       
-                            self.tiles[n]["distribution"] = (1/(probnum + 1))   
+                            self.tiles[n]["distribution"] = (1/(probnum + 1)) 
+                        self.push_message(f"changed distribution of tile {self.tiles[n].get("coord")} ")  
         # its the first time getting changed so both distribution values are 0.5          
         else:
             for n in range(len(self.tiles)):    
                 for i,tile in enumerate(both_tiles):
                     if both_tiles[i] == self.tiles[n] and i == increase_tile_idx:
                         self.tiles[n]["distribution"] = probnum/(probnum+1)
+                        self.push_message(f"changed distribution of tile {self.tiles[n].get("coord")} ")
                     elif both_tiles[i] == self.tiles[n]:
                         self.tiles[n]["distribution"] = (1/(probnum+1))
+                        self.push_message(f"changed distribution of tile {self.tiles[n].get("coord")} ")
         # reallows teh actions except Placedevcard
         for n in ("endTurn", "trading", "building"):
             self.allowed_actions.append(n)
