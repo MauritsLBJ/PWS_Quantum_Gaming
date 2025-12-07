@@ -45,6 +45,6 @@ SQRT3 = 3 ** 0.5
 
 def getFont(size=18):
     try:
-        return pygame.font.Font("fonts/ScienceGothic-Regular.ttf", size)
+        return pygame.font.Font("../fonts/ScienceGothic-Regular.ttf", size)
     except:
         return pygame.font.SysFont("Arial", size)

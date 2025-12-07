@@ -22,7 +22,7 @@ from .buildings import compute_vertex_adjacency
 from .player import Player
 from .constants import WIN_W as W, WIN_H as H
 
-dir = os.path.dirname(__file__)
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 
 class GameState:
@@ -1041,7 +1041,7 @@ class GameState:
         
         self.longest_road = None
         
-        pygame.mixer.music.load("music/Quantum_Catan.wav")
+        pygame.mixer.music.load("../music/Quantum_Catan.wav")
         pygame.mixer.music.play()
         pygame.mixer.music.set_volume(0.2)
         
