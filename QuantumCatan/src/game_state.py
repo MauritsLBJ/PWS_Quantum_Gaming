@@ -707,7 +707,7 @@ class GameState:
 
 
         #draw selection hexagon highlight
-        if self.moving_robber or self.entangling or self.inspecting:
+        if self.moving_robber or self.entangling or self.inspecting or self.interfering:
             text = None
             if self.inspecting:
                 text = "Select a tile to inspect"
@@ -715,6 +715,8 @@ class GameState:
                 text = "Select a tile for the robber"
             elif self.entangling:
                 text = "Select two tiles to entangle"
+            elif self.interfering:
+                text = "Select a tile to increase probability"
             
             draw_text(s, text, self.screen.get_width()//2, 50, size=19, color=TEXT_COLOR, centered=True)
             
