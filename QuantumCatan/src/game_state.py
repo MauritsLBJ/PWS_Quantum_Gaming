@@ -256,6 +256,42 @@ class GameState:
         self.roads_owner[edge] = player_idx
         self.players[player_idx].buildables_placed["roads"].append(road_idx)
         
+        #check longest road update
+        roads_in_road = [edge]
+        longest_road = 1
+        for vertex in edge:
+            self.find_longest_road(vertex, roads_in_road, longest_road, player_idx)
+
+        
+        
+        
+    def find_longest_road(self, vertex, roads_in_road, longest_road, player_idx):
+        for neighbor in self.vertex_neighbors.get(vertex, []):
+            adjacent_edge = tuple(sorted((vertex, neighbor)))
+            if adjacent_edge in self.roads_owner and self.roads_owner[adjacent_edge] == self.current_player and adjacent_edge not in roads_in_road:
+                roads_in_road.append(adjacent_edge)
+                for v in adjacent_edge:
+                    if v != vertex:
+                        self.find_longest_road(v, roads_in_road, longest_road, player_idx)
+                        roads_in_road.pop()
+            else:
+                if len(roads_in_road) > longest_road:
+                    longest_road = len(roads_in_road)
+        if longest_road >= 4:
+            if self.longest_road is None or longest_road > self.longest_road[1]:
+                if self.longest_road is not None and self.longest_road[0] == player_idx:
+                    self.push_message(f"{self.players[player_idx].name} has increased their Longest Road to length {longest_road}!")
+                elif self.longest_road is not None:
+                    prev_player_idx = self.longest_road[0]
+                    self.push_message(f"{self.players[player_idx].name} takes Longest Road from {self.players[prev_player_idx].name} with length {longest_road}!")
+                    self.players[prev_player_idx].score -= 2
+                    self.players[player_idx].score += 2
+                else:
+                    self.push_message(f"{self.players[player_idx].name} has claimed Longest Road with length {longest_road}!")
+                    self.players[player_idx].score += 2
+                self.longest_road = (player_idx, longest_road)
+                
+        
     def give_initial_settlement_resources(self, v_idx, player_idx):
         # give resources from adjacent tiles to player
         adjacent_tiles = []
@@ -378,7 +414,8 @@ class GameState:
             owner = self.settlements_owner.get(v)
             if owner and self.current_player not in owner:
                 owner_idx, btype = owner
-                self.possible_victims.append(owner_idx)
+                if owner_idx not in self.possible_victims:
+                    self.possible_victims.append(owner_idx)
     # switches a pair of normal tiles to a pair of entangeled tiles
     def entangle_pair_of_normal_tiles(self, pair_of_tiles, ent_group_number, start=False):
         """ A list with a two pairs needs to be passed in this function, next it checks with which of the 
@@ -590,10 +627,10 @@ class GameState:
                     pygame.draw.circle(s, col, (int(x) + (W-200-int(x))/1*(deltaseconds-0.5), int(y) - (int(y)-100)/1*(deltaseconds-0.5)), 12)
 
 
-            else:
+            else: # city
                 pygame.draw.rect(s, col, (x-13, y-13, 26, 26))
                 pygame.draw.rect(s, BLACK, (x-13, y-13, 26, 26), 2)
-                if self.frames_passed - self.frames_passed_at_roll < 10 and idx in self.activated_cities:
+                if self.seconds_passed - self.seconds_passed_at_roll < 10 and idx in self.activated_cities:
                     pygame.draw.rect(s, (255, 255, 0), (x-13, y-13, 26, 26), width=3)
                 if deltaseconds >= 10 and deltaseconds < 30 and idx in self.activated_cities:
                     pygame.draw.rect(s, col, (int(x) + (W-200-int(x))/20*(deltaseconds-10)-13, int(y) - (int(y)-100)/20*(deltaseconds-10)-13, 26, 26))
@@ -627,6 +664,7 @@ class GameState:
         pygame.draw.rect(s, PANEL_BG, (ix, 5, 235, 330), border_radius=8)
         font = getFont(16)
         title = font.render(f"P{self.current_player+1}  (Score = {self.players[self.current_player].score})", True, PLAYER_COLORS[self.current_player])
+        #f"You have longest road of: {self.longest_road[1]} long" if self.longest_road is not None and self.longest_road[0] == self.current_player else ""
         s.blit(title, (ix+10, 10))
         sub = getFont(16).render("Inventory:", True, TEXT_COLOR)
         s.blit(sub, (ix+10, 36))
@@ -714,7 +752,7 @@ class GameState:
         draw_text(s, "Shop", sx+10, sy+8, size=18)
         # populate shop rects and store them in state
         self.shop_rects = []
-        opts = [("road","Road"),("settlement","Settlement"),("city","City"),("dev","Dev Card")]
+        opts = [("road","Road (1 Lumber, 1 Brick)"),("settlement","Settlement (1 Lumber, 1 Brick, 1 Wool, 1 Grain)"),("city","City (2 Grain, 3 Ore)"),("dev","Dev Card (1 Wool, 1 Grain, 1 Ore)")]
         selectBrightFactor = 1.2
         hoverBrightFactor = 1.1
         
@@ -995,8 +1033,12 @@ class GameState:
         self.seconds_passed_at_roll = 0
         self.activated_settlements = []
         self.activated_cities = []
+        
+        self.longest_road = None
+        
         pygame.mixer.music.load("QuantumCatan/music/Quantum_Catan.wav")
         pygame.mixer.music.play()
+        pygame.mixer.music.set_volume(0.2)
         
         """
         self.bgImage = pygame.image.load("QuantumCatan/img/bg.jpg")
