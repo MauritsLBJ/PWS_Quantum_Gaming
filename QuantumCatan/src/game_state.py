@@ -260,7 +260,8 @@ class GameState:
         if card_type == "point":
             self.players[player_idx].score += 1
             self.push_message(f"{self.players[player_idx].name} received a point") 
-            self.allowed_actions.remove("placeDevCard")
+            if "placeDevCard" in self.allowed_actions:
+                self.allowed_actions.remove("placeDevCard")
         # aplies knight card
         elif card_type == "knight":
             # adds to the players army
@@ -518,14 +519,14 @@ class GameState:
         resource2 = pair_of_tiles[1][1].get("resource")
         # checks for every tile in the self.riles list if one of the given tiles equals it
         for n in range(len(self.tiles)):
-            for idx, tile in pair_of_tiles:
+            for idx, (i, tile) in enumerate(pair_of_tiles):
                 if tile == self.tiles[n]:
                     # changes all the atributes of the tile in self.tiles
                     self.tiles[n]["quantum"] = True
                     self.tiles[n]["ent_group"] = ent_group_number
                     self.tiles[n]["resource"] = None
                     self.tiles[n]["distribution"] = 0.5
-                    self.tiles[n]["superposed"] = [resource1, resource2]
+                    self.tiles[n]["superposed"] = [resource1, resource2] if idx == 0 else [resource2, resource1]
                     
 
 
@@ -682,8 +683,9 @@ class GameState:
                 # divides the hexagons in half and fills in both halves
                 lefthalf_polys = [self.polys[i][1],self.polys[i][2],self.polys[i][3],self.polys[i][4]]
                 righthalf_polys = [self.polys[i][4],self.polys[i][5],self.polys[i][0],self.polys[i][1]]
-                pygame.draw.polygon(s, col1, righthalf_polys)
-                pygame.draw.polygon(s, col2, lefthalf_polys)
+                pygame.draw.polygon(s, col1, lefthalf_polys)
+                pygame.draw.polygon(s, col2, righthalf_polys)
+                
                 pygame.draw.polygon(s, LINE_COLOR, self.polys[i], 3)
                 
 
