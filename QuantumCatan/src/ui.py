@@ -91,8 +91,53 @@ class GameUI:
                 yesOrNo = True if self.state.trading == False else False
                 self.button_clicked()
                 self.state.trading = yesOrNo
-                print(self.state.trading)
+                self.state.tradingAddedResources = {"lumber":0,"brick":0,"wool":0,"grain":0,"ore":0}
+                #print(self.state.trading)
                 return
+            if rect_contains(self.state.sendTrade_rect, pos) and self.state.trading_partner and any(self.state.tradingAddedResources[k] != 0 for k in ("lumber","brick","wool","grain","ore")):
+                if self.state.trading_partner == 'bank/port':
+                    resourcesForReceiving = 0
+                    for k in ("lumber","brick","wool","grain","ore"):
+                        if (self.state.tradingAddedResources[k] < 0 ):
+                            ratio = self.state.check_best_trade_ratio(k)
+                            if self.state.tradingAddedResources[k] % ratio == 0:
+                                resourcesForReceiving += self.state.tradingAddedResources[k]/ratio
+                            else:
+                                self.state.push_message("Suboptimal trade ratio, please change")
+                                return
+                        if (self.state.tradingAddedResources[k] > 0):
+                            resourcesForReceiving += self.state.tradingAddedResources[k]
+                    if resourcesForReceiving == 0:
+                        for k in ("lumber","brick","wool","grain","ore"):
+                            self.state.players[self.state.current_player].add_resource(k, self.screen, self.state.tradingAddedResources[k])
+                    self.state.tradingAddedResources = {"lumber":0,"brick":0,"wool":0,"grain":0,"ore":0}
+                else:
+                    player_sending = int(f"{self.state.current_player}")
+                    player_receiving = int(f"{self.state.trading_partner}")
+                    self.state.trading_partner = player_sending
+                    self.state.current_player = player_receiving
+                    print(self.state.trading_partner)
+                    self.state.allowed_actions = ["accepting_trade"]
+                    for k in ("lumber","brick","wool","grain","ore"):
+                        self.state.tradingAddedResources[k] *= -1
+            
+            if rect_contains(self.state.acceptTrade_rect, pos) and all(self.state.tradingAddedResources[k] <= self.state.players[self.state.current_player].resources[k] for k in ("lumber","brick","wool","grain","ore")):
+                for k in ("lumber","brick","wool","grain","ore"):
+                    self.state.players[self.state.current_player].add_resource(k, self.screen, self.state.tradingAddedResources[k])
+                self.state.current_player = self.state.trading_partner
+                self.state.trading = False
+                for k in ("lumber","brick","wool","grain","ore"):
+                    self.state.tradingAddedResources[k] *= -1
+                    self.state.players[self.state.current_player].add_resource(k, self.screen, self.state.tradingAddedResources[k])
+                self.state.tradingAddedResources = {"lumber":0,"brick":0,"wool":0,"grain":0,"ore":0}
+                self.state.allowed_actions.remove("accepting_trade")
+                self.state.allowed_actions.append(k if k not in self.state.allowed_actions else None for k in ("endTurn", "trading", "building", ))
+            if rect_contains(self.state.declineTrade_rect, pos):
+                self.state.current_player = self.state.trading_partner
+                self.state.trading = False
+                self.state.allowed_actions.remove("accepting_trade")
+                self.state.allowed_actions.append(k if k not in self.state.allowed_actions else None for k in ("endTurn", "trading", "building", ))
+                                
             if rect_contains(self.state.devMode_rect, pos) and self.state.devMode == False:
                 self.button_clicked()
                 self.state.devMode = True
@@ -122,14 +167,33 @@ class GameUI:
             # if trading mode: select give then receive via panels
             if self.state.trading:
                 # check inventory give buttons
+                #print(self.state.trading_partners_rects)
+                #print(self.state.possible_trading_partners)
                 for res, rect in enumerate(self.state.trading_partners_rects):
-                    if rect_contains(rect, pos):
-                        if self.state.possible_trading_partners[res] == "Bank/port":
-                            self.state.trading_partner = "bank/port"
+                    if rect_contains(rect, pos) and "accepting_trade" not in self.state.allowed_actions:
+                        self.state.tradingAddedResources = {"lumber":0,"brick":0,"wool":0,"grain":0,"ore":0}
+                        if self.state.possible_trading_partners[res] == "bank/port":
+                            if not self.state.trading_partner == "bank/port":
+                                self.state.trading_partner = "bank/port"
+                            else:
+                                self.state.trading_partner = None
                         else:
-                            self.state.trading_partner = self.state.possible_trading_partners[res]
-                        break
-                    return
+                            for player in self.state.players:
+                                if player.idx == self.state.possible_trading_partners[res]:
+                                    if not self.state.trading_partner == player.idx:
+                                        self.state.trading_partner = player.idx
+                                    else:
+                                        self.state.trading_partner = None
+                        return
+                # + and - clicks
+                #check plus signs
+                for i, (rect, res) in enumerate(self.state.plusSignRects):
+                    if rect_contains(rect, pos) and "accepting_trade" not in self.state.allowed_actions:
+                        self.state.tradingAddedResources[res] += 1
+                for i, (rect, res) in enumerate(self.state.minusSignRects):
+                    if rect_contains(rect, pos) and "accepting_trade" not in self.state.allowed_actions and self.state.players[self.state.current_player].resources.get(res,0) + self.state.tradingAddedResources[res] > 0:
+                        self.state.tradingAddedResources[res] -= 1
+                    
             if self.state.dev_card_rects:
                 for i, (rect, card) in enumerate(self.state.dev_card_rects):
                     if rect_contains(rect, pos):
@@ -212,7 +276,7 @@ class GameUI:
                                         if self.state.round == 1:
                                             # give resources for 2nd settlement
                                             self.state.give_initial_settlement_resources(nearest, self.state.current_player)
-                                            print("Gave initial resources for settlement at", nearest)
+                                            #print("Gave initial resources for settlement at", nearest)
                                     else:
                                         self.state.push_message("Cannot place more settlements this round.")
                                 elif self.state.player_buy(self.state.current_player, "settlement"):
@@ -279,7 +343,7 @@ class GameUI:
                         self.state.entangling_pair.append((tile_idx, tile))
                         if len(self.state.entangling_pair) == 2:
                             self.state.unused_ent_group_numbers.sort()
-                            print("entangling tiles:", self.state.entangling_pair)
+                            #print("entangling tiles:", self.state.entangling_pair)
                             self.state.entangle_pair_of_normal_tiles(self.state.entangling_pair, self.state.unused_ent_group_numbers.pop(0))
                             self.state.entangling_pair = []
                             self.state.entangling = False 

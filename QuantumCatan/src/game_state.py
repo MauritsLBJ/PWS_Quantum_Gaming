@@ -6,7 +6,6 @@ import random
 from .constants import WIN_W, WIN_H, BG_COLOR, PANEL_BG, LINE_COLOR, TEXT_COLOR, WHITE, BLACK, PLAYER_COLORS, BUTTON_COLOR, getFont, PREVIEW_COLOR, ENT_NUMBER_COLOURS, DEV_CARD_COLORS
 from .board import (
     compute_centers_and_polys,
-    compute_sea_polys,
     randomize_tiles,
     generate_sea_ring,
     HEX_COORDS,
@@ -15,7 +14,7 @@ from .board import (
 from .board import compute_centers_and_polys as board_centers_polys
 from .board import compute_sea_polys
 from .util import hex_to_pixel, polygon_corners, dist
-from .resources import best_trade_ratio_for, perform_trade
+from .resources import *
 from .rendering import draw_text
 from .buildings import compute_vertex_adjacency
 #from .robber import initial_robber_tile
@@ -30,7 +29,7 @@ class GameState:
         self.screen = screen
         self.num_players = num_players
         self.playerWon = False
-        self.num_entangled_pairs = 0
+        self.num_entangled_pairs = 2
         self.runningGame = False
         self.hex_size = 50
         self.devMode = False
@@ -94,7 +93,6 @@ class GameState:
                 if a != b:
                     road_set.add(tuple(sorted((a,b))))
         self.roads_list = sorted(list(road_set))
-        #print (self.roads_list)
         return self.roads_list
 
 
@@ -113,12 +111,12 @@ class GameState:
     def _assign_ports_to_vertices(self):
         mapping = {}
         for i, st in enumerate(self.sea_tiles):
-            cx, cy = self.sea_polys[i][0]  # center approx via first vertex of polygon
-            # find two nearest intersections
-            dists = [(j, math.hypot(ix-cx, iy-cy)) for j, (ix,iy) in enumerate(self.intersections)]
-            dists.sort(key=lambda x: x[1])
-            picks = [dists[0][0], dists[1][0]]
-            mapping[i] = picks
+            c = self.sea_centers[i]
+            road = self.roads_list[self.find_nearest_road(c)]
+            print(road)
+            mapping[i] = road
+            
+        print(mapping)         
         return mapping
 
     # gameplay helpers
@@ -237,6 +235,25 @@ class GameState:
         for k,v in cost.items():
             self.players[player_idx].resources[k] -= v
         return True
+    
+    #check the best trade ratio (outputs either 2, 3, or 4 depending on ports the player is connected to)
+    def check_best_trade_ratio(self, resource):
+        best_trade_ratio = 4
+        for i, s_tile in enumerate(self.sea_tiles):
+            if s_tile["port"] != "sea":
+                for k in range(2):
+                    print(self.port_vertex_map[i][k])
+                    if self.settlements_owner.get(self.port_vertex_map[i][k]) and self.settlements_owner.get(self.port_vertex_map[i][k])[0] == self.current_player:
+                        if s_tile["port"] == "any": 
+                            best_trade_ratio = 3
+                        if s_tile["port"] == f"port_{resource}":
+                            best_trade_ratio = 2
+        return best_trade_ratio
+                
+                
+        
+
+
 
     def give_player_devcard(self, player_idx):
         """a function that gives the current player a random devcard and adds it to the player's held_dev_card"""
@@ -406,7 +423,7 @@ class GameState:
         for ti in adjacent_tiles:
             tile = self.tiles[ti]
             res = tile.get("resource")
-            print(res)
+            #print(res)
             if res and res != "desert":
                 self.players[player_idx].resources[res] += 1
                 self.push_message(f"{self.players[player_idx].name} received 1 {res} from initial settlement.")
@@ -480,11 +497,6 @@ class GameState:
                             #print(f"all resources of player are now: {self.players[player_idx].resources}. And all tokens of player are now: {self.players[player_idx].tokens}.")
                             self.push_message(f"{self.players[player_idx].name} received {amt}: {tile.get("resource")}.")
 
-    # trades
-    def perform_trade(self, player_idx, give_resource, receive_resource):
-        ratio = best_trade_ratio_for(player_idx, give_resource, self.sea_tiles, self.port_vertex_map, self.settlements_owner)
-        ok = perform_trade([p.resources for p in self.players], player_idx, give_resource, receive_resource, ratio)
-        return ok, ratio
     
     def steal_from_victim(self, thief_idx, victim_idx):
         victim = self.players[victim_idx]
@@ -674,6 +686,9 @@ class GameState:
         self.reset_rect = self.reset_rect
         self.dice_rect = self.dice_rect
         self.trade_rect = self.trade_rect
+        self.sendTrade_rect = pygame.Rect(self.screen.get_width()-220, 500, 140, 20)
+        self.acceptTrade_rect = pygame.Rect(self.screen.get_width()-250, 520, 140, 20)
+        self.declineTrade_rect = pygame.Rect(self.screen.get_width()-100, 520, 140, 20)
         self.hex_size = 50 
         self.origin = (self.screen.get_width()//2, self.screen.get_height()//2 - 10)
         self.centers, self.polys = compute_centers_and_polys(self.origin, self.hex_size)
@@ -760,13 +775,25 @@ class GameState:
                 self.unused_ent_group_numbers.sort()
                 pygame.draw.polygon(s, ENT_NUMBER_COLOURS[self.unused_ent_group_numbers[0]-1], self.polys[selected_tile], 5)
 
-
+        
         # draw roads
         for (a,b), owner in self.roads_owner.items():
             ax,ay = self.intersections[a]; bx,by = self.intersections[b]
             pygame.draw.line(s, (60,40,20), (ax,ay), (bx,by), 10)
             pygame.draw.line(s, PLAYER_COLORS[owner], (ax,ay), (bx,by), 6)
 
+
+        #draw port vertices
+        for i, s_tile in enumerate(self.sea_tiles):
+            if s_tile["port"] != "sea":
+                for k in range(2):
+                    size = 8
+                    for player in self.players:
+                        if self.settlements_owner.get(self.port_vertex_map[i][k]) and self.settlements_owner.get(self.port_vertex_map[i][k])[0] == player.idx:
+                            size = 16.5
+                    pygame.draw.circle(s, (0, 70, 100), (self.intersections[self.port_vertex_map[i][k]]) , size)
+        #[0] + 0.3 * (self.sea_centers[i][0] - self.intersections[self.port_vertex_map[i][k]][0]), self.intersections[self.port_vertex_map[i][k]][1] + 0.3 * (self.sea_centers[i][1] - self.intersections[self.port_vertex_map[i][k]][1])
+        
         # draw settlements
         for idx, (owner, typ) in self.settlements_owner.items():
             x,y = self.intersections[idx]
@@ -788,7 +815,7 @@ class GameState:
                     pygame.draw.rect(s, (255, 255, 0), (x-13, y-13, 26, 26), width=3)
                 if deltaseconds >= 0.5 and deltaseconds < 1 and idx in self.activated_cities:
                     pygame.draw.rect(s, col, (int(x) + (self.screen.get_width()-200-int(x))/0.5*(deltaseconds-0.5), int(y) - (int(y)-100)/0.5*(deltaseconds-0.5), 26, 26))
-                
+            
         # draw placement preview
         if self.placing and self.sel:
             mouse_x, mouse_y = pygame.mouse.get_pos()
@@ -810,6 +837,8 @@ class GameState:
                     ax,ay = self.intersections[a]; bx,by = self.intersections[b]
                     pygame.draw.line(s, PREVIEW_COLOR["good" if can_place else "bad"], (ax,ay), (bx,by), 6)
 
+        
+        
         # UI panels (basic)
         
         # inventory panel
@@ -824,8 +853,27 @@ class GameState:
         s.blit(sub, (ix+10, 36))
         # show resources
         for i,res in enumerate(["lumber","brick","wool","grain","ore"]):
-            txt = getFont(14).render(f"{res.capitalize()}: {self.players[self.current_player].resources.get(res,0)}", True, TEXT_COLOR)
+            if self.tradingAddedResources[res] == 0:
+                txt = getFont(14).render(f"{res.capitalize()}: {self.players[self.current_player].resources.get(res,0)}", True, TEXT_COLOR)
+            elif self.tradingAddedResources[res] < 0:
+                txt = getFont(14).render(f"{res.capitalize()}: {self.players[self.current_player].resources.get(res,0)} ({self.tradingAddedResources[res]})", True, TEXT_COLOR)
+            else:
+                txt = getFont(14).render(f"{res.capitalize()}: {self.players[self.current_player].resources.get(res,0)} (+{self.tradingAddedResources[res]})", True, TEXT_COLOR)
             s.blit(txt, (ix+12, 60 + i*20))
+            
+            #trading buttons
+            if self.trading and self.trading_partner is not None:
+                plusSign = pygame.Rect(ix+170, 60 + i*20, 25, 18)
+                if not any(k[0] == plusSign for k in self.plusSignRects):
+                    self.plusSignRects.append((plusSign, res)) 
+                minusSign = pygame.Rect(ix+200, 60 + i*20, 25, 18)
+                if self.players[self.current_player].resources.get(res,0) > 0:
+                    if not any(k[0] == minusSign for k in self.minusSignRects):
+                        self.minusSignRects.append((minusSign, res))
+                pygame.draw.rect(s, (150, 100, 100) if "accepting_trade" not in self.allowed_actions else (100, 100, 100), plusSign, border_radius=6)#if getting robbed, resource greyed out
+                pygame.draw.rect(s, (150, 200, 200) if self.players[self.current_player].resources.get(res,0) + self.tradingAddedResources[res] > 0 and "accepting_trade" not in self.allowed_actions else (100, 100, 100), minusSign, border_radius=6) #cannot go under 0
+                draw_text(s, "+", ix+175,  60 + i*20, size=14, color=BLACK)
+                draw_text(s, "-", ix+205,  60 + i*20, size=14, color=BLACK)
         # show tokens
         tokensMessage = getFont(16).render(f"Tokens: ({len(self.players[self.current_player].tokens)})" + f"(18 shown)" if len(self.players[self.current_player].tokens)>18 else f"Tokens: ({len(self.players[self.current_player].tokens)})", True, TEXT_COLOR)
         s.blit(tokensMessage, (ix+12, 170))
@@ -853,38 +901,66 @@ class GameState:
         for cardType in ("knight", "point", "interference", "Year of Plenty", "Monopoly", "roadBuilding"):
             for i in range(self.players[self.current_player].held_dev_cards[cardType]):
                 helddevcards.append(cardType)
-        ix = self.screen.get_width()/2 - (len(helddevcards) * 110)/2
+        ixdev = self.screen.get_width()/2 - (len(helddevcards) * 110)/2
         self.dev_card_rects = []
         for i, card in enumerate(helddevcards):
-            self.dev_card_rects.append([pygame.Rect(ix + i*110, self.screen.get_height() - 60, 100, 60), card])
+            addingDev = [pygame.Rect(ixdev + i*110, self.screen.get_height() - 60, 100, 60), card]
+            if addingDev not in self.dev_card_rects:
+                self.dev_card_rects.append(addingDev)
             pygame.draw.rect(s, DEV_CARD_COLORS[card], self.dev_card_rects[i][0], border_radius=8)
-            draw_text(s, helddevcards[i].replace("point","Victory Point").replace("Year of Plenty","Year of Plenty").replace("roadBuilding","Road Building").capitalize(), ix + i*110 + 50, self.screen.get_height() - 50, size=12, color=WHITE, centered=True)
+            draw_text(s, helddevcards[i].replace("point","Victory Point").replace("Year of Plenty","Year of Plenty").replace("roadBuilding","Road Building").capitalize(), ixdev + i*110 + 50, self.screen.get_height() - 50, size=12, color=WHITE, centered=True)
         
         #trading / robber stealing panel
         if self.possible_victims or self.trading:
-            pygame.draw.rect(s, PANEL_BG, (ix, 360, 235, 120), border_radius=8)
+            selectBrightFactor = 1.2
+            hoverBrightFactor = 1.1
+            self.possible_trading_partners = []
+            self.trading_partners_rects = []
+            self.possible_victims_rects = []
+            pygame.draw.rect(s, PANEL_BG, (ix, 360, 235, 160), border_radius=8)
             if self.possible_victims:
                 draw_text(s, "Steal from:", ix+10, 365, size=16)
                 for i, pidx in enumerate(self.possible_victims):
-                    self.possible_victims_rects.append(pygame.Rect(ix+10, 390 + i*20, 215, 18))
+                    addingRect = pygame.Rect(ix+10, 390 + i*20, 215, 18)
+                    self.possible_victims_rects.append(addingRect)
                     pygame.draw.rect(s, self.players[pidx].color, self.possible_victims_rects[i], border_radius=6)
                     draw_text(s, f"{self.players[pidx].name}", ix+12, 388 + i*20, size=14, color=WHITE)
             elif self.trading:
                 draw_text(s, "Trade with:", ix+10, 365, size=16)
                 k = 0
-                self.possible_trading_partners.append("bank/port")
-                self.trading_partners_rects.append(pygame.Rect(ix+10, 390 + k*20, 215, 18))
-                pygame.draw.rect(s, WHITE, self.trading_partners_rects[k], border_radius=6)
-                draw_text(s, f"Bank/port", ix+12, 388 + k*20, size=14, color=BLACK)
+                if "accepting_trade" not in self.allowed_actions:
+                    self.possible_trading_partners.append("bank/port")
+                    self.trading_partners_rects.append(pygame.Rect(ix+10, 390 + k*20, 215, 18))
+                    pygame.draw.rect(s, (250, 250, 250) if self.trading_partner == 'bank/port' else (200, 200, 200) if self.trading_partners_rects[0].collidepoint(pygame.mouse.get_pos())   else (150, 150, 150) , self.trading_partners_rects[0], border_radius=6)
+                    draw_text(s, f"Bank/port", ix+12, 388 + k*20, size=14, color=BLACK)
+                    k+=1
                 for i in range(len(self.players)):
                     if i == self.current_player:
                         continue
                     else:
-                        self.possible_trading_partners.append(self.players[i].idx)
-                        self.trading_partners_rects.append(pygame.Rect(ix+10, 390 + (k+1)*20, 215, 18))
-                        pygame.draw.rect(s, self.players[i].color, self.trading_partners_rects[k+1], border_radius=6)
-                        draw_text(s, f"{self.players[i].name}", ix+12, 388 + (k+1)*20, size=14, color=WHITE)
+                        colour = self.players[i].color
+                        if len(self.trading_partners_rects) >= k+1 and self.trading_partners_rects[k].collidepoint(pygame.mouse.get_pos()):
+                            colour = tuple([hoverBrightFactor*x for x in self.players[i].color])
+                        if self.trading_partner == self.players[i].idx:
+                            colour = tuple([selectBrightFactor*x for x in self.players[i].color])
+                        if self.players[i].idx not in self.possible_trading_partners:
+                            self.possible_trading_partners.append(self.players[i].idx)
+                            self.trading_partners_rects.append(pygame.Rect(ix+10, 390 + (k)*20, 215, 18))
+                        pygame.draw.rect(s, colour, self.trading_partners_rects[k], border_radius=6)
+                        draw_text(s, f"{self.players[i].name}", ix+12, 388 + (k)*20, size=14, color=WHITE)
                         k+=1
+                """print(self.trading_partner)
+                print(self.tradingAddedResources)"""
+                if "accepting_trade" in self.allowed_actions:
+                    pygame.draw.rect(s, (100, 100, 100) if all(self.tradingAddedResources[k] <= self.players[self.current_player].resources[k] for k in ("lumber","brick","wool","grain","ore")) else (150, 200, 100), self.acceptTrade_rect, border_radius=6)
+                    draw_text(s, f"Accept Trade", self.acceptTrade_rect.x+1, self.acceptTrade_rect.y +1, size=14, color=WHITE)
+                    pygame.draw.rect(s, (150, 0, 50), self.declineTrade_rect, border_radius=6)
+                    draw_text(s, f"Decline Trade", self.declineTrade_rect.x+1, self.declineTrade_rect.y +1, size=14, color=WHITE)
+                elif self.trading_partner is not None and any(self.tradingAddedResources[k] != 0 for k in ("lumber","brick","wool","grain","ore")):
+                    pygame.draw.rect(s, (150, 200, 100), self.sendTrade_rect, border_radius=6)
+                    draw_text(s, f"Send Offer", self.sendTrade_rect.x+1, self.sendTrade_rect.y +1, size=14, color=WHITE)
+            else:
+                self.trading_partner = None
         #trading button:
         self.trade_rect = pygame.Rect(self.screen.get_width() - 190, 340, 80, 20)
         pygame.draw.rect(s, ((150,100,200) if "trading" in self.allowed_actions  or self.devMode == True else (128, 128, 128)), self.trade_rect, border_radius=6)
@@ -1113,7 +1189,7 @@ class GameState:
         self.unused_ent_group_numbers = [i+1 for i in range(10)]
         self.tiles = randomize_tiles()
         # randomly select 3 entangled pairs
-        print(self.tiles)
+        #print(self.tiles)
         
         
         
@@ -1167,9 +1243,18 @@ class GameState:
         self.end_turn_rect = pygame.Rect(20, H-66, 120, 40)
 
         self.trade_rect = pygame.Rect(W-220, 240, 80, 20)
+        
+        self.sendTrade_rect = pygame.Rect(W-220, 280, 80, 20)
+        self.acceptTrade_rect = pygame.Rect(W-220, 280, 80, 20)
+        self.declineTrade_rect = pygame.Rect(W-120, 280, 80, 20)
         # shop rects are computed each draw
         self.shop_rects = []
         self.shop_rects = []
+        
+        self.plusSignRects = []
+        self.minusSignRects = []
+        
+        self.tradingAddedResources = {"lumber":0,"brick":0,"wool":0,"grain":0,"ore":0}
         
         self.inspecting = False
         
@@ -1212,7 +1297,7 @@ class GameState:
         self.start_button = pygame.Rect(self.screen.get_width()//2 - 90, self.screen.get_height()//2 + 250, 180, 40)
         self.restart_button = pygame.Rect(self.screen.get_width()//2 - 105, self.screen.get_height()//2 + 200, 210, 40)
         if self.runningGame:
-            if "trading" not in self.allowed_actions and not self.devMode:
+            if "trading" not in self.allowed_actions and not self.devMode and not "accepting_trade" in self.allowed_actions:
                 self.trading = False
                 self.trading_partner = None
                 self.possible_trading_partners = []
