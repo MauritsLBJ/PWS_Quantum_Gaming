@@ -253,11 +253,6 @@ class GameState:
                             return best_trade_ratio
         print(best_trade_ratio)
         return best_trade_ratio
-                
-                
-        
-
-
 
     def give_player_devcard(self, player_idx):
         """a function that gives the current player a random devcard and adds it to the player's held_dev_card"""
@@ -317,8 +312,8 @@ class GameState:
                 for k in self.allowed_actions:
                     self.allowed_actions.remove(k)
         elif card_type == "Monopoly":
-            ## lowk ga hier de trade functie voor nodig hebben 
-            pass
+            self.push_message("Please type the first letter of the resource you would like to steal from the other players")
+            self.monopolysing = True
         elif card_type == "Year of Plenty":
             # lowk ga hier de trade functie voor nodig hebben 
             pass
@@ -328,6 +323,19 @@ class GameState:
             self.placing = self.sel
             self.has_free_roads = True
             self.roads_left_to_build = 2
+
+    def steal_every_ones_resource(self, choosen_resource, player_idx):
+        """import a resource and it checks for every player how many of that resource is in the inventory, they grab the resource and
+        add it to players inventory"""
+        amount_of_resources = 0
+        for n in range(len(self.players)):
+            if n != player_idx:
+                amount_of_resources += self.players[n].resources.get(choosen_resource)
+                self.players[n].resources[choosen_resource] = 0
+        self.players[player_idx].resources[choosen_resource] += amount_of_resources
+        self.push_message(f"{self.players[player_idx].name} has stolen everyone's {choosen_resource}")
+        self.push_message(f"{self.players[player_idx].name} has recieved {amount_of_resources} {choosen_resource}")
+        self.monopolysing = False
 
     def check_for_greatest_knightmight(self):
         """should check if a player already has the greatest knightmight, then if a player has a knightmight of three or greater
@@ -1138,6 +1146,7 @@ class GameState:
         # for road build card
         self.has_free_roads = False
         self.roads_left_to_build = 0
+        self.monopolysing = False
         self.has_placed_devcard = False
         self.trading_partner = None
         self.possible_trading_partners = []
@@ -1213,6 +1222,8 @@ class GameState:
         # for road build devcard
         self.has_free_roads = False
         self.roads_left_to_build = 0
+        # for monopoly devcard
+        self.monopolysing = False
 
         self.settlements_placed = 0
         self.roads_placed = 0
@@ -1277,7 +1288,7 @@ class GameState:
         self.milliseconds_passed_at_roll = 0
         self.activated_settlements = []
         self.activated_cities = []
-        self.possible_cards = ["knight"] * 14 + ["point"] * 5 + ["interference"] * 14 + ["Year of Plenty"] * 2 + ["Monopoly"] * 2 + ["roadBuilding"] *2
+        self.possible_cards = ["knight"] * 14 + ["point"] * 5 + ["interference"] * 14 + ["Year of Plenty"] * 2 + ["Monopoly"] * 20 + ["roadBuilding"] * 2
         self.dev_card_rects = []
         
         self.longest_road = None
