@@ -242,12 +242,16 @@ class GameState:
         for i, s_tile in enumerate(self.sea_tiles):
             if s_tile["port"] != "sea":
                 for k in range(2):
-                    print(self.port_vertex_map[i][k])
+                    #print(self.port_vertex_map[i][k])
                     if self.settlements_owner.get(self.port_vertex_map[i][k]) and self.settlements_owner.get(self.port_vertex_map[i][k])[0] == self.current_player:
-                        if s_tile["port"] == "any": 
+                        if s_tile["port"] == "port_any": 
                             best_trade_ratio = 3
+                            print(best_trade_ratio)
                         if s_tile["port"] == f"port_{resource}":
                             best_trade_ratio = 2
+                            print(best_trade_ratio)
+                            return best_trade_ratio
+        print(best_trade_ratio)
         return best_trade_ratio
                 
                 
