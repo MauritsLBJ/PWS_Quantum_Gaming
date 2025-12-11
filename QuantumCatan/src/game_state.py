@@ -311,7 +311,7 @@ class GameState:
             return
         elif card_type == "interference":
             self.push_message("Please select the quantum tile of which you want to raise the propability for the left side")
-            # self.push_message("")
+            self.push_message("The propability for right side of the corresponding tile will be raised")
             self.interfering = True
             if self.devMode == False: 
                 for k in self.allowed_actions:
@@ -323,8 +323,11 @@ class GameState:
             # lowk ga hier de trade functie voor nodig hebben 
             pass
         elif card_type == "roadBuilding":
-            # idk yet
-            pass
+            self.push_message("Place two roads")
+            self.sel = "road"
+            self.placing = self.sel
+            self.has_free_roads = True
+            self.roads_left_to_build = 2
 
     def check_for_greatest_knightmight(self):
         """should check if a player already has the greatest knightmight, then if a player has a knightmight of three or greater
@@ -1132,6 +1135,9 @@ class GameState:
     def end_turn(self):
         
         self.trading = False
+        # for road build card
+        self.has_free_roads = False
+        self.roads_left_to_build = 0
         self.has_placed_devcard = False
         self.trading_partner = None
         self.possible_trading_partners = []
@@ -1204,7 +1210,10 @@ class GameState:
         self.interfering = False
         self.entangling_pair = []
         
-        
+        # for road build devcard
+        self.has_free_roads = False
+        self.roads_left_to_build = 0
+
         self.settlements_placed = 0
         self.roads_placed = 0
         

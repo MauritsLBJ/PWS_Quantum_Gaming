@@ -142,7 +142,7 @@ class GameUI:
                 self.button_clicked()
                 self.state.devMode = True
                 self.state.round = 5
-                self.state.push_message("Developer mode activated.")
+                self.state.push_message("Developer mode activated.") 
                 for player in self.state.players:
                     player.resources = {"lumber":100,"brick":100,"wool":100,"grain":100,"ore":100}
             if rect_contains(self.state.inspect_rect, pos):
@@ -303,6 +303,18 @@ class GameUI:
                                     self.state.roads_placed += 1
                                 else:
                                     self.state.push_message("Cannot place more roads this round.")
+                            # incase the player played a development card
+                            elif self.state.has_free_roads:
+                                self.state.place_road(nearest, self.state.current_player)
+                                self.state.roads_left_to_build -= 1
+                                self.state.roads_placed += 1
+                                if self.state.roads_left_to_build == 0:
+                                    self.state.sel = None
+                                    self.state.placing = False
+                                    self.state.has_free_roads = False
+                                else:
+                                    self.state.push_message("place second road")
+                            # incase the player bought a road
                             elif self.state.player_buy(self.state.current_player, "road"):
                                 self.state.place_road(nearest, self.state.current_player)
                                 self.state.sel = None
