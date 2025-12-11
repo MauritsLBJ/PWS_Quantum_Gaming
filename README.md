@@ -55,6 +55,7 @@ When you roll 7 or play a Knight development card,  you can:
 4. Steal resources from a player with a building adjacent to the tile you just placed the robber on.
 
 ### Victory in Quatan
+You win a game of Quatan by optaining 10 victory points or more. You can earn victory points for:
 - Settlements: 1 point each
 - Cities: 2 points each
 - Longest Road: 2 bonus points (need 5+ connected roads)
