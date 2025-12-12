@@ -88,7 +88,7 @@ Tokens are shown in your inventory like:
 You cannot use them to build or trade.
 
 ### Interference Card
-Once done, put information here.
+You can get an interference card by buying development cards. Once you play an interference card, you can press on a quantum tile to increase the probability of the resource on the left side of that tile. Automatically, the probability of the same resource on the other quantum tile it's entangled with decreases. Do you want to increase the odds of the resource on the right side? Just use your interference card on the tile it is entangled with!
 
 ## Developer Mode
 Enable our developer mode by pressing the DevMode button in the upper left corner. Once enabled, you get:
